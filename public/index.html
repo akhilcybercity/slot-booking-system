@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Opening — Slot Register</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+    <header class="main-header">
+        <div class="logo-container">
+            <div class="logo-circle">SIB</div>
+        </div>
+        <div class="header-titles">
+            <div class="college-info">SFS COLLEGE <span class="dot">•</span> SEMINAR HALL</div>
+            <h1>Account Opening — Slot Register</h1>
+        </div>
+        <nav class="header-nav">
+            <button id="nav-book" class="nav-btn active">Book a Slot</button>
+            <button id="nav-cancel" class="nav-btn">My Booking</button>
+            <button id="nav-staff" class="nav-btn outline">Staff</button>
+        </nav>
+    </header>
+
+    <main class="content-container">
+        <!-- View 1: Book a Slot -->
+        <div id="view-book" class="view active">
+            
+            <section class="date-selection panel">
+                <h2>Choose a date</h2>
+                <p class="subtitle">Slots run 10:00 AM – 5:00 PM with a break from 2:00–2:30 PM. Closed Sundays, 2nd & 4th Saturdays, and bank holidays.</p>
+                
+                <div class="date-controls">
+                    <div class="input-group">
+                        <label for="booking-date">DATE</label>
+                        <input type="date" id="booking-date" class="date-picker">
+                    </div>
+                    <button class="next-day-btn">Next open day &rarr;</button>
+                </div>
+                
+                <div class="status-banner open">
+                    <span id="date-status-text">Open — Friday, 3 July 2026</span>
+                </div>
+            </section>
+
+            <section class="slots-section panel">
+                <h2>Available slots</h2>
+                <p id="slots-date-display" class="subtitle">Friday, 3 July 2026</p>
+                
+                <div class="legend">
+                    <span class="legend-item"><span class="box available"></span> Available</span>
+                    <span class="legend-item"><span class="box taken"></span> Taken</span>
+                    <span class="legend-item"><span class="box break"></span> Break / closed</span>
+                </div>
+
+                <div class="slots-table-container">
+                    <table class="slots-table">
+                        <thead>
+                            <tr>
+                                <th>TIME</th>
+                                <th>COMPUTER 1</th>
+                                <th>COMPUTER 2</th>
+                            </tr>
+                        </thead>
+                        <tbody id="slots-tbody">
+                            <!-- Rows injected via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <!-- View 2: Find & Cancel -->
+        <div id="view-cancel" class="view" style="display: none;">
+            <section class="cancel-section panel">
+                <h2>Find & cancel my slot</h2>
+                <p class="subtitle">Enter your register/roll number and the date you booked to view your slot. Cancelling requires the 4-digit code you were shown when you booked.</p>
+                
+                <form id="find-booking-form" class="cancel-form">
+                    <div class="input-group">
+                        <label for="cancel-roll">REGISTER / ROLL NO.</label>
+                        <input type="text" id="cancel-roll" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="cancel-date">DATE</label>
+                        <input type="date" id="cancel-date" required>
+                    </div>
+                    <button type="submit" class="btn primary">Find booking</button>
+                </form>
+
+                <div id="cancel-result" class="cancel-result" style="display: none;">
+                    <div class="booking-details">
+                        <h3 id="cancel-name-display">AKHIL</h3>
+                        <p id="cancel-time-display" class="booking-meta">Computer 1 &middot; 10:00 AM–10:20 AM (20 min)</p>
+                    </div>
+                    <div class="cancel-action">
+                        <input type="text" id="cancel-code-input" placeholder="4-digit code" maxlength="4" pattern="\d{4}">
+                        <button id="confirm-cancel-btn" class="btn danger">Confirm</button>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- View 3: Staff Login -->
+        <div id="view-staff-login" class="view" style="display: none;">
+            <section class="login-section panel" style="max-width: 400px; margin: 0 auto;">
+                <h2>Staff Login</h2>
+                <p class="subtitle">Enter your PIN to access the staff area.</p>
+                <form id="staff-login-form">
+                    <div class="input-group">
+                        <label for="staff-pin">PIN</label>
+                        <input type="password" id="staff-pin" required>
+                    </div>
+                    <button type="submit" class="btn primary">Login</button>
+                </form>
+            </section>
+        </div>
+
+        <!-- View 4: Staff Dashboard -->
+        <div id="view-staff-dashboard" class="view" style="display: none;">
+            
+            <section class="holiday-section panel">
+                <h2>Closed dates / bank holidays</h2>
+                <p class="subtitle">Sundays and 2nd/4th Saturdays are closed automatically. Add any additional bank holidays SIB confirms (e.g. Diwali, Ganesh Chaturthi) here.</p>
+                
+                <ul id="holiday-list" class="holiday-list">
+                    <!-- Dynamic list items -->
+                </ul>
+
+                <form id="add-holiday-form" class="add-holiday-form">
+                    <div class="input-group" style="margin-bottom: 0;">
+                        <label for="new-holiday-date" style="text-transform: uppercase;">Add closed date</label>
+                        <div style="display: flex; gap: 1rem; align-items: flex-end;">
+                            <input type="date" id="new-holiday-date" required>
+                            <button type="submit" class="btn secondary">Add</button>
+                        </div>
+                    </div>
+                </form>
+            </section>
+
+            <section class="roster-section panel">
+                <h2>Roster</h2>
+                <p class="subtitle">View or export the day's bookings, or free up a slot manually (e.g. a no-show).</p>
+                
+                <div class="roster-controls" style="display: flex; align-items: flex-end; gap: 1rem; margin-bottom: 2rem;">
+                    <div class="input-group" style="margin-bottom: 0;">
+                        <label for="roster-date">DATE</label>
+                        <input type="date" id="roster-date">
+                    </div>
+                    <button id="export-csv-btn" class="btn secondary">Export CSV</button>
+                </div>
+
+                <div id="roster-list" class="roster-list">
+                    <!-- Dynamic roster items -->
+                </div>
+            </section>
+
+            <section class="settings-section panel">
+                <h2>Change staff PIN</h2>
+                <form id="change-pin-form" style="display: flex; align-items: flex-end; gap: 1rem;">
+                    <div class="input-group" style="margin-bottom: 0;">
+                        <label for="new-pin">NEW PIN</label>
+                        <input type="text" id="new-pin" placeholder="4+ characters" minlength="4" required>
+                    </div>
+                    <button type="submit" class="btn secondary">Update PIN</button>
+                </form>
+            </section>
+        </div>
+    </main>
+
+    <!-- Modals -->
+    <!-- Booking Modal -->
+    <div id="booking-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h2>Reserve this slot</h2>
+            <p id="modal-slot-info" class="modal-subtitle">Computer 1 &middot; 10:00 AM – 10:10 AM</p>
+            
+            <form id="booking-form">
+                <input type="hidden" id="form-time">
+                <input type="hidden" id="form-computer">
+
+                <div class="input-group">
+                    <label for="student-name">FULL NAME</label>
+                    <input type="text" id="student-name" placeholder="As per college ID" required>
+                </div>
+                
+                <div class="input-group">
+                    <label for="student-roll">REGISTER / ROLL NO.</label>
+                    <input type="text" id="student-roll" placeholder="e.g. 23BCA045" required>
+                </div>
+                
+                <div class="input-group">
+                    <label for="student-class">CLASS / DEPARTMENT (OPTIONAL)</label>
+                    <input type="text" id="student-class" placeholder="e.g. II BCA">
+                </div>
+                
+                <div class="checkbox-group alert-box">
+                    <input type="checkbox" id="under-18">
+                    <label for="under-18">I am under 18 — I need 20 minutes for my account opening. This will also reserve the next 10-minute slot on this computer.</label>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn secondary" id="cancel-booking-btn">Cancel</button>
+                    <button type="submit" class="btn primary">Confirm slot</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div id="success-modal" class="modal-overlay">
+        <div class="modal-content success-content">
+            
+            <div id="token-card" style="background-color: #faf9f6; padding: 1rem;">
+                <h2>Slot booked!</h2>
+                <p id="success-slot-info" class="modal-subtitle">Computer 1 &middot; 10:00 AM – 10:20 AM</p>
+                
+                <div class="code-box">
+                    <span id="generated-code" class="huge-code">3 6 4 7</span>
+                </div>
+            </div>
+            
+            <p class="instructions">Save this 4-digit cancellation code — you'll need it to cancel this slot later under "My Booking". It will not be shown again.</p>
+            
+            <div class="modal-actions right-align">
+                <button type="button" class="btn secondary" id="download-token-btn">Download Image</button>
+                <button type="button" class="btn primary" id="success-done-btn">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
