@@ -53,18 +53,15 @@ body {
     margin-right: 1.5rem;
 }
 
-.logo-circle {
-    width: 48px;
-    height: 48px;
-    border: 2px solid var(--gold);
+.college-logo-img {
+    width: 64px;
+    height: 64px;
     border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--gold);
-    font-family: var(--font-heading);
-    font-weight: bold;
-    font-size: 1.2rem;
+    border: 2px solid var(--gold);
+    object-fit: cover;
+    display: block;
+    background: white;
+    padding: 2px;
 }
 
 .header-titles {
