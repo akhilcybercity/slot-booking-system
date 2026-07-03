@@ -551,3 +551,209 @@ input[type="date"], input[type="text"] {
     font-size: 0.85rem;
     color: var(--gold);
 }
+
+/* Responsive / Mobile Adjustments */
+@media (max-width: 768px) {
+    /* Header optimization */
+    .main-header {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: 1.25rem 1rem;
+        gap: 1rem;
+    }
+    
+    .logo-container {
+        margin-right: 0;
+    }
+    
+    .college-logo-img {
+        width: 56px;
+        height: 56px;
+    }
+    
+    .college-info {
+        font-size: 0.65rem;
+        letter-spacing: 1px;
+    }
+    
+    h1 {
+        font-size: 1.35rem;
+    }
+    
+    .header-nav {
+        width: 100%;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    
+    .nav-btn {
+        font-size: 0.8rem;
+        padding: 0.4rem 0.8rem;
+        flex-grow: 1;
+        text-align: center;
+        max-width: 120px;
+    }
+
+    /* Content and Panels */
+    .content-container {
+        margin: 1rem auto;
+        padding: 0 0.5rem;
+    }
+
+    .panel {
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+    }
+
+    /* Date controls and forms */
+    .date-controls {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+    }
+
+    .date-controls .input-group {
+        margin-bottom: 0;
+    }
+
+    .next-day-btn {
+        margin-bottom: 0;
+        width: 100%;
+        text-align: center;
+    }
+
+    /* Table adjustments */
+    .legend {
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .slots-table th, .slots-table td {
+        padding: 0.5rem;
+        font-size: 0.8rem;
+    }
+
+    .slots-table td:first-child {
+        width: 22%;
+    }
+
+    .booking-name {
+        font-size: 0.85rem;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+    }
+    
+    .booking-meta-small {
+        font-size: 0.7rem;
+    }
+
+    /* Modals */
+    .modal-content {
+        padding: 1.5rem;
+        margin: 1rem;
+        width: calc(100% - 2rem);
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+
+    .modal-actions {
+        flex-direction: column-reverse;
+        gap: 0.75rem;
+    }
+
+    .modal-actions .btn {
+        width: 100%;
+    }
+
+    .huge-code {
+        font-size: 2.25rem;
+        letter-spacing: 0.25rem;
+    }
+
+    /* Find & Cancel booking page */
+    .cancel-form {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+    }
+
+    .cancel-form .input-group {
+        margin-bottom: 0;
+    }
+
+    .cancel-form .btn {
+        width: 100%;
+    }
+
+    .cancel-result {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1.25rem;
+        text-align: center;
+    }
+
+    .cancel-action {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+    }
+
+    .cancel-action input {
+        width: 100%;
+    }
+
+    /* Staff area */
+    .add-holiday-form .input-group div {
+        flex-direction: column;
+        align-items: stretch !important;
+        width: 100%;
+    }
+    
+    .add-holiday-form .btn {
+        width: 100%;
+    }
+
+    .roster-controls {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+    }
+
+    .roster-controls .input-group {
+        margin-bottom: 0;
+    }
+
+    .roster-controls .btn {
+        width: 100%;
+    }
+
+    .roster-item {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+        gap: 1rem;
+    }
+
+    .roster-item .btn {
+        width: 100%;
+    }
+
+    #change-pin-form {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+    }
+
+    #change-pin-form .input-group {
+        margin-bottom: 0;
+    }
+
+    #change-pin-form .btn {
+        width: 100%;
+    }
+}
+
