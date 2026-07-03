@@ -96,7 +96,7 @@
                     </div>
                     <div class="cancel-action">
                         <input type="text" id="cancel-code-input" placeholder="4-digit code" maxlength="4" pattern="\d{4}">
-                        <button id="confirm-cancel-btn" class="btn danger">Confirm</button>
+                        <button type="button" id="confirm-cancel-btn" class="btn danger">Confirm</button>
                     </div>
                 </div>
             </section>
@@ -208,7 +208,8 @@
         </div>
     </div>
 
-    <!-- Success Modal -->
+    <!-- Status Message -->
+    <div id="status-toast" style="display:none; position:fixed; bottom:2rem; right:2rem; background:#1a252f; color:white; padding:1rem 1.5rem; border-radius:8px; z-index:9999; max-width:300px; font-size:0.9rem; box-shadow:0 4px 15px rgba(0,0,0,0.3);"></div>
     <div id="success-modal" class="modal-overlay">
         <div class="modal-content success-content">
             

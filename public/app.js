@@ -95,15 +95,27 @@ let currentBookingSlot = null;
 let currentCancelTarget = null;
 let currentDayData = {};
 
+// --- Toast Notification ---
+function showToast(msg, isError = false) {
+    const toast = document.getElementById('status-toast');
+    toast.textContent = msg;
+    toast.style.background = isError ? '#8c2a3e' : '#1a252f';
+    toast.style.display = 'block';
+    setTimeout(() => { toast.style.display = 'none'; }, 4000);
+}
+
 // --- API Helpers ---
 async function fetchAPI(endpoint, options = {}) {
     try {
         const res = await fetch(endpoint, options);
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'API Error');
+        if (!res.ok) throw new Error(data.error || 'Server error');
         return data;
     } catch (err) {
-        alert(err.message);
+        const msg = err.message.includes('Failed to fetch')
+            ? 'Network error — please check your connection.'
+            : err.message;
+        showToast(msg, true);
         throw err;
     }
 }
@@ -443,8 +455,15 @@ async function handleFindBooking(e) {
 }
 
 async function handleConfirmCancel() {
-    if (!currentCancelTarget) return;
+    if (!currentCancelTarget) {
+        showToast('Please search for your booking first.', true);
+        return;
+    }
     const enteredCode = document.getElementById('cancel-code-input').value.trim();
+    if (!enteredCode || enteredCode.length < 4) {
+        showToast('Please enter your 4-digit cancellation code.', true);
+        return;
+    }
     
     try {
         await fetchAPI('/api/bookings/cancel', {
@@ -457,14 +476,16 @@ async function handleConfirmCancel() {
             })
         });
         
-        alert('Booking cancelled successfully.');
+        showToast('Booking cancelled successfully! ✓');
         cancelResult.style.display = 'none';
         findBookingForm.reset();
         if (currentSelectedDate === currentCancelTarget.date) {
             await loadAndRenderSlots(currentSelectedDate);
         }
         currentCancelTarget = null;
-    } catch (e) {}
+    } catch (e) {
+        // Error already shown by showToast in fetchAPI
+    }
 }
 
 // --- Staff Area Logic ---
@@ -589,16 +610,23 @@ async function renderRoster(dateStr) {
 }
 
 window.staffFreeSlot = async function(dateStr, key) {
-    if(confirm("Are you sure you want to cancel this booking and free the slot?")) {
+    if (!adminPin) {
+        showToast('Session expired. Please log in to Staff area again.', true);
+        return;
+    }
+    if(confirm('Are you sure you want to cancel this booking and free the slot?')) {
         try {
             await fetchAPI('/api/admin/free', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'x-admin-pin': adminPin },
                 body: JSON.stringify({ date: dateStr, slot_key: key })
             });
+            showToast('Slot freed successfully. ✓');
             renderRoster(dateStr);
             if(currentSelectedDate === dateStr) loadAndRenderSlots(dateStr);
-        } catch(e) {}
+        } catch(e) {
+            // Error already shown by showToast in fetchAPI
+        }
     }
 };
 
