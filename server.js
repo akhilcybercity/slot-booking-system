@@ -56,7 +56,10 @@ app.get('/api/settings', async (req, res) => {
             }
         });
         
-        const responseSettings = { closedDates: settings.closedDates };
+        const responseSettings = { 
+            closedDates: settings.closedDates,
+            numComputers: parseInt(settings.numComputers) || 2
+        };
         res.json(responseSettings);
     } catch (err) {
         console.error(err);
@@ -103,6 +106,21 @@ app.put('/api/auth/password', authenticateToken, async (req, res) => {
         
         await db.query("UPDATE users SET password = ? WHERE username = ?", [newPassword, req.user.username]);
         await logAction(req.user.username, 'Changed password');
+        res.json({ success: true });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Database error" });
+    }
+});
+
+app.post('/api/admin/settings', authenticateToken, checkAdmin, async (req, res) => {
+    const { numComputers } = req.body;
+    if (!numComputers || isNaN(numComputers) || numComputers < 1 || numComputers > 10) {
+        return res.status(400).json({ error: "Invalid number of computers" });
+    }
+    try {
+        await db.query("UPDATE settings SET value = ? WHERE `key` = 'numComputers'", [numComputers.toString()]);
+        await logAction(req.user.username, `Updated number of computers to ${numComputers}`);
         res.json({ success: true });
     } catch (err) {
         console.error(err);
@@ -267,14 +285,24 @@ app.post('/api/bookings', async (req, res) => {
         
         // Prevent booking slots that have already passed today
         const now = new Date();
-        const istTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
-        const todayStr = istTime.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+        const options = { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: 'numeric', hour12: false };
+        const formatter = new Intl.DateTimeFormat('en-US', options);
         
-        if (date === todayStr) {
+        // Handle Edge case where Intl formats midnight as 24:xx vs 00:xx
+        const parts = formatter.formatToParts(now);
+        const istHStr = parts.find(p => p.type === 'hour').value;
+        const istMStr = parts.find(p => p.type === 'minute').value;
+        
+        let currentH = parseInt(istHStr, 10);
+        if (currentH === 24) currentH = 0; // Some browsers parse 24-hour midnight as 24
+        const currentM = parseInt(istMStr, 10);
+        
+        const istDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(now);
+        
+        if (date === istDateStr) {
             const [timeStr] = slot_key.split('_'); // "10:00"
             const [slotH, slotM] = timeStr.split(':').map(Number);
-            const currentH = istTime.getHours();
-            const currentM = istTime.getMinutes();
+            
             if (currentH > slotH || (currentH === slotH && currentM >= slotM)) {
                 return res.status(400).json({ error: "Cannot book a slot that has already passed today." });
             }

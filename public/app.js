@@ -1,6 +1,7 @@
 // app.js
 
 let serverSettings = { closedDates: [] };
+let NUM_COMPUTERS = 2;
 let authToken = localStorage.getItem('authToken') || null;
 let userRole = localStorage.getItem('userRole') || null;
 
@@ -137,8 +138,21 @@ async function fetchAPI(endpoint, options = {}) {
 async function init() {
     try {
         serverSettings = await fetchAPI('/api/settings');
+        if (serverSettings.numComputers) {
+            NUM_COMPUTERS = serverSettings.numComputers;
+        }
     } catch (e) {
         console.error("Could not load settings");
+    }
+    
+    // Dynamically set table headers for main slots table
+    const theadTr = document.querySelector('.slots-table thead tr');
+    if (theadTr) {
+        let headersHTML = '<th>TIME</th>';
+        for (let i = 1; i <= NUM_COMPUTERS; i++) {
+            headersHTML += `<th>COMPUTER ${i}</th>`;
+        }
+        theadTr.innerHTML = headersHTML;
     }
 
     const today = new Date().toISOString().split('T')[0];
@@ -289,14 +303,20 @@ async function loadAndRenderSlots(dateStr) {
 function renderSlots(dateStr, dayData) {
     tbody.innerHTML = '';
     
-    // Check if we are looking at today
+    // Check if we are looking at today in IST correctly
     const now = new Date();
-    const istTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
-    const todayStr = istTime.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }); // YYYY-MM-DD
+    const options = { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: 'numeric', hour12: false };
+    const formatter = new Intl.DateTimeFormat('en-US', options);
+    const parts = formatter.formatToParts(now);
+    const istHStr = parts.find(p => p.type === 'hour').value;
+    const istMStr = parts.find(p => p.type === 'minute').value;
     
+    let currentH = parseInt(istHStr, 10);
+    if (currentH === 24) currentH = 0;
+    const currentM = parseInt(istMStr, 10);
+    
+    const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(now);
     const isToday = dateStr === todayStr;
-    const currentH = istTime.getHours();
-    const currentM = istTime.getMinutes();
 
     ALL_SLOTS.forEach((slot, index) => {
         const tr = document.createElement('tr');
@@ -304,8 +324,10 @@ function renderSlots(dateStr, dayData) {
         const tdTime = document.createElement('td');
         tdTime.textContent = `${slot.startStr} – ${slot.endStr}`;
         tr.appendChild(tdTime);
+        
+        const comps = Array.from({length: NUM_COMPUTERS}, (_, i) => `C${i+1}`);
 
-        ['C1', 'C2'].forEach(comp => {
+        comps.forEach(comp => {
             const td = document.createElement('td');
             const slotKey = `${slot.id}_${comp}`;
             const booking = dayData[slotKey];
@@ -433,7 +455,7 @@ async function handleBookingSubmit(e) {
         
         bookingModal.style.display = 'none';
         
-        const compName = currentBookingSlot.computerId === 'C1' ? 'Computer 1' : 'Computer 2';
+        const compName = 'Computer ' + currentBookingSlot.computerId.replace('C', '');
         document.getElementById('success-slot-info').innerHTML = `${compName} &middot; ${currentBookingSlot.startStr} – ${endStrFinal}`;
         document.getElementById('generated-code').textContent = cancelCode.split('').join(' ');
         
@@ -488,7 +510,7 @@ async function handleFindBooking(e) {
         if (foundSlotKey) {
             currentCancelTarget = { date: dateToFind, key: foundSlotKey, code: foundData.cancelCode };
             const [timeId, comp] = foundSlotKey.split('_');
-            const compName = comp === 'C1' ? 'Computer 1' : 'Computer 2';
+            const compName = 'Computer ' + comp.replace('C', '');
             
             const startSlotIndex = ALL_SLOTS.findIndex(s => s.id === timeId);
             let endStr = ALL_SLOTS[startSlotIndex].endStr;
@@ -593,6 +615,34 @@ async function handlePasswordChange(e) {
         showToast('Password changed successfully. ✓');
         e.target.reset();
     } catch (err) {}
+}
+
+window.handleUpdateComputers = async function(e) {
+    e.preventDefault();
+    const numComputers = parseInt(document.getElementById('num-computers-input').value);
+    try {
+        await fetchAPI('/api/admin/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ numComputers })
+        });
+        showToast('Computer settings updated successfully.');
+        setTimeout(() => location.reload(), 1500);
+    } catch (err) {}
+}
+
+function renderAdminDashboard() {
+    viewAdminDashboard.style.display = 'block';
+    if (!serverSettings.closedDates) serverSettings.closedDates = [];
+    renderHolidays();
+    loadAdminStaffList();
+    loadAdminLogs();
+    
+    // Set the initial value for the manage computers input
+    const numCompsInput = document.getElementById('num-computers-input');
+    if (numCompsInput) {
+        numCompsInput.value = NUM_COMPUTERS;
+    }
 }
 
 // ... Holidays ...
@@ -715,7 +765,7 @@ async function renderRoster(dateStr, role) {
                 
                 bookings.push({
                     key, data, timeId, comp,
-                    compName: comp === 'C1' ? 'Computer 1' : 'Computer 2',
+                    compName: 'Computer ' + comp.replace('C', ''),
                     startStr: ALL_SLOTS[startSlotIndex].startStr,
                     endStr
                 });
@@ -783,7 +833,7 @@ async function handleExportCSV(dateStr, role) {
         for (const [key, data] of Object.entries(dayData)) {
             if (data.status === 'booked') {
                 const [timeId, comp] = key.split('_');
-                const compName = comp === 'C1' ? 'Computer 1' : 'Computer 2';
+                const compName = 'Computer ' + comp.replace('C', '');
                 const row = [
                     compName,
                     timeId,
@@ -823,3 +873,5 @@ window.togglePassword = function(btn) {
         btn.textContent = '👁';
     }
 };
+
+

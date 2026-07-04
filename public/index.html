@@ -58,9 +58,7 @@
                     <table class="slots-table">
                         <thead>
                             <tr>
-                                <th>TIME</th>
-                                <th>COMPUTER 1</th>
-                                <th>COMPUTER 2</th>
+                                <!-- Injected dynamically via JS based on NUM_COMPUTERS -->
                             </tr>
                         </thead>
                         <tbody id="slots-tbody">
@@ -234,6 +232,18 @@
                         </div>
                     </div>
                     <button type="submit" class="btn secondary">Add Staff</button>
+                </form>
+            </section>
+            
+            <section class="computer-mgmt-section panel">
+                <h2>Manage Computers</h2>
+                <p class="subtitle">Set the number of available computers for booking.</p>
+                <form id="update-computers-form" style="display: flex; gap: 1rem; align-items: flex-end;" onsubmit="handleUpdateComputers(event)">
+                    <div class="input-group" style="margin-bottom: 0;">
+                        <label for="num-computers-input">NUMBER OF COMPUTERS</label>
+                        <input type="number" id="num-computers-input" min="1" max="10" required>
+                    </div>
+                    <button type="submit" class="btn secondary">Update</button>
                 </form>
             </section>
 

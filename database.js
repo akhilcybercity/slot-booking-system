@@ -75,6 +75,12 @@ async function initDB() {
             await pool.query("INSERT INTO settings (\`key\`, value) VALUES ('closedDates', '[]')");
         }
 
+        // Initialize numComputers
+        const [numCompRes] = await pool.query("SELECT value FROM settings WHERE \`key\` = 'numComputers'");
+        if (numCompRes.length === 0) {
+            await pool.query("INSERT INTO settings (\`key\`, value) VALUES ('numComputers', '2')");
+        }
+
         console.log("Database initialized successfully.");
     } catch (err) {
         console.error("Database initialization error:", err);
