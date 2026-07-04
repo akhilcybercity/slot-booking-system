@@ -114,7 +114,10 @@
                     </div>
                     <div class="input-group">
                         <label for="login-password">PASSWORD</label>
-                        <input type="password" id="login-password" required>
+                        <div class="password-wrapper">
+                            <input type="password" id="login-password" required>
+                            <button type="button" class="eye-btn" onclick="togglePassword(this)">👁</button>
+                        </div>
                     </div>
                     <button type="submit" class="btn primary">Login</button>
                 </form>
@@ -137,6 +140,36 @@
                 <div id="staff-roster-list" class="roster-list">
                     <!-- Dynamic roster items -->
                 </div>
+            </section>
+            
+            <section class="password-change-section panel">
+                <h2>Change Password</h2>
+                <form class="password-change-form" onsubmit="handlePasswordChange(event)">
+                    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                        <div class="input-group">
+                            <label>CURRENT PASSWORD</label>
+                            <div class="password-wrapper">
+                                <input type="password" class="old-password" required>
+                                <button type="button" class="eye-btn" onclick="togglePassword(this)">👁</button>
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label>NEW PASSWORD</label>
+                            <div class="password-wrapper">
+                                <input type="password" class="new-password" required>
+                                <button type="button" class="eye-btn" onclick="togglePassword(this)">👁</button>
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label>CONFIRM NEW PASSWORD</label>
+                            <div class="password-wrapper">
+                                <input type="password" class="confirm-password" required>
+                                <button type="button" class="eye-btn" onclick="togglePassword(this)">👁</button>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn secondary" style="margin-top: 1rem;">Update Password</button>
+                </form>
             </section>
         </div>
 
@@ -195,7 +228,10 @@
                     </div>
                     <div class="input-group" style="margin-bottom: 0;">
                         <label for="new-staff-pass">PASSWORD</label>
-                        <input type="password" id="new-staff-pass" required>
+                        <div class="password-wrapper">
+                            <input type="password" id="new-staff-pass" required>
+                            <button type="button" class="eye-btn" onclick="togglePassword(this)">👁</button>
+                        </div>
                     </div>
                     <button type="submit" class="btn secondary">Add Staff</button>
                 </form>
@@ -216,6 +252,36 @@
                         </tbody>
                     </table>
                 </div>
+            </section>
+            
+            <section class="password-change-section panel">
+                <h2>Change Password</h2>
+                <form class="password-change-form" onsubmit="handlePasswordChange(event)">
+                    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                        <div class="input-group">
+                            <label>CURRENT PASSWORD</label>
+                            <div class="password-wrapper">
+                                <input type="password" class="old-password" required>
+                                <button type="button" class="eye-btn" onclick="togglePassword(this)">👁</button>
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label>NEW PASSWORD</label>
+                            <div class="password-wrapper">
+                                <input type="password" class="new-password" required>
+                                <button type="button" class="eye-btn" onclick="togglePassword(this)">👁</button>
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label>CONFIRM NEW PASSWORD</label>
+                            <div class="password-wrapper">
+                                <input type="password" class="confirm-password" required>
+                                <button type="button" class="eye-btn" onclick="togglePassword(this)">👁</button>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn secondary" style="margin-top: 1rem;">Update Password</button>
+                </form>
             </section>
         </div>
     </main>

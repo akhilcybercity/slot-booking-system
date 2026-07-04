@@ -1,8 +1,8 @@
 // app.js
 
 let serverSettings = { closedDates: [] };
-let authToken = null;
-let userRole = null;
+let authToken = localStorage.getItem('authToken') || null;
+let userRole = localStorage.getItem('userRole') || null;
 
 // --- Constants & Config ---
 const START_HOUR = 10;
@@ -529,6 +529,8 @@ async function handleStaffLogin(e) {
         
         authToken = res.token;
         userRole = res.role;
+        localStorage.setItem('authToken', authToken);
+        localStorage.setItem('userRole', userRole);
         document.getElementById('login-username').value = '';
         document.getElementById('login-password').value = '';
         switchView('staff');
@@ -537,11 +539,35 @@ async function handleStaffLogin(e) {
 
 async function handleLogout() {
     try {
-        await fetchAPI('/api/auth/logout', { method: 'POST' });
+        if(authToken) await fetchAPI('/api/auth/logout', { method: 'POST' });
     } catch(e) {}
     authToken = null;
     userRole = null;
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('userRole');
     switchView('book');
+}
+
+async function handlePasswordChange(e) {
+    e.preventDefault();
+    const oldPassword = e.target.querySelector('.old-password').value;
+    const newPassword = e.target.querySelector('.new-password').value;
+    const confirmPassword = e.target.querySelector('.confirm-password').value;
+
+    if (newPassword !== confirmPassword) {
+        showToast('New passwords do not match!', true);
+        return;
+    }
+
+    try {
+        await fetchAPI('/api/auth/password', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ oldPassword, newPassword })
+        });
+        showToast('Password changed successfully. ✓');
+        e.target.reset();
+    } catch (err) {}
 }
 
 // ... Holidays ...
@@ -760,3 +786,15 @@ async function handleExportCSV(dateStr, role) {
 
 // Boot up
 document.addEventListener('DOMContentLoaded', init);
+
+// Password UI Toggle
+window.togglePassword = function(btn) {
+    const input = btn.previousElementSibling;
+    if (input.type === 'password') {
+        input.type = 'text';
+        btn.textContent = '🙈';
+    } else {
+        input.type = 'password';
+        btn.textContent = '👁';
+    }
+};

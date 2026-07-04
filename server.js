@@ -91,6 +91,25 @@ app.post('/api/auth/logout', authenticateToken, (req, res) => {
     res.json({ success: true });
 });
 
+app.put('/api/auth/password', authenticateToken, async (req, res) => {
+    const { oldPassword, newPassword } = req.body;
+    if (!oldPassword || !newPassword) return res.status(400).json({ error: "Missing required fields" });
+    
+    try {
+        const [rows] = await db.query("SELECT password FROM users WHERE username = ?", [req.user.username]);
+        if (rows.length === 0 || rows[0].password !== oldPassword) {
+            return res.status(401).json({ error: "Incorrect current password" });
+        }
+        
+        await db.query("UPDATE users SET password = ? WHERE username = ?", [newPassword, req.user.username]);
+        await logAction(req.user.username, 'Changed password');
+        res.json({ success: true });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Database error" });
+    }
+});
+
 // Admin: Manage Staff
 app.get('/api/admin/staff', authenticateToken, checkAdmin, async (req, res) => {
     try {
