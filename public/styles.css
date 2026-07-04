@@ -742,17 +742,17 @@ input[type="date"], input[type="text"] {
         width: 100%;
     }
 
-    #change-pin-form {
+    #add-staff-form {
         flex-direction: column;
-        align-items: stretch;
+        align-items: stretch !important;
         gap: 0.75rem;
     }
 
-    #change-pin-form .input-group {
+    #add-staff-form .input-group {
         margin-bottom: 0;
     }
 
-    #change-pin-form .btn {
+    #add-staff-form .btn {
         width: 100%;
     }
 }

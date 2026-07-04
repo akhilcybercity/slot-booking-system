@@ -10,16 +10,33 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Middleware to check admin PIN
-const checkAdminPin = (req, res, next) => {
-    const providedPin = req.headers['x-admin-pin'];
-    db.get("SELECT value FROM settings WHERE key = 'pin'", (err, row) => {
-        if (err) return res.status(500).json({ error: "Database error" });
-        if (row && row.value === providedPin) {
-            next();
-        } else {
-            res.status(401).json({ error: "Unauthorized. Invalid PIN." });
-        }
+const crypto = require('crypto');
+
+// In-memory token store (token -> { username, role })
+const activeTokens = {};
+
+const authenticateToken = (req, res, next) => {
+    const token = req.headers['x-auth-token'];
+    if (token && activeTokens[token]) {
+        req.user = activeTokens[token];
+        next();
+    } else {
+        res.status(401).json({ error: 'Unauthorized' });
+    }
+};
+
+const checkAdmin = (req, res, next) => {
+    if (req.user && req.user.role === 'admin') {
+        next();
+    } else {
+        res.status(403).json({ error: 'Forbidden. Admin only.' });
+    }
+};
+
+// Helper for logging actions
+const logAction = (username, action) => {
+    db.run("INSERT INTO logs (username, action) VALUES (?, ?)", [username, action], err => {
+        if (err) console.error("Logging error", err);
     });
 };
 
@@ -49,29 +66,66 @@ app.get('/api/settings', (req, res) => {
     });
 });
 
-app.post('/api/admin/login', (req, res) => {
-    const { pin } = req.body;
-    db.get("SELECT value FROM settings WHERE key = 'pin'", (err, row) => {
+app.post('/api/auth/login', (req, res) => {
+    const { username, password } = req.body;
+    if (!username || !password) return res.status(400).json({ error: "Missing credentials" });
+    
+    db.get("SELECT username, role FROM users WHERE username = ? AND password = ?", [username, password], (err, row) => {
         if (err) return res.status(500).json({ error: "Database error" });
-        if (row && row.value === pin) {
-            res.json({ success: true });
+        if (row) {
+            const token = crypto.randomBytes(32).toString('hex');
+            activeTokens[token] = { username: row.username, role: row.role };
+            logAction(row.username, 'Login successful');
+            res.json({ success: true, token, role: row.role, username: row.username });
         } else {
-            res.status(401).json({ success: false });
+            res.status(401).json({ error: "Invalid credentials" });
         }
     });
 });
 
-app.post('/api/settings/pin', checkAdminPin, (req, res) => {
-    const { newPin } = req.body;
-    if (!newPin) return res.status(400).json({ error: "New PIN required" });
-    
-    db.run("UPDATE settings SET value = ? WHERE key = 'pin'", [newPin], function(err) {
+app.post('/api/auth/logout', authenticateToken, (req, res) => {
+    const token = req.headers['x-auth-token'];
+    if (token) delete activeTokens[token];
+    res.json({ success: true });
+});
+
+// Admin: Manage Staff
+app.get('/api/admin/staff', authenticateToken, checkAdmin, (req, res) => {
+    db.all("SELECT username, role FROM users WHERE role = 'staff'", (err, rows) => {
         if (err) return res.status(500).json({ error: "Database error" });
+        res.json(rows);
+    });
+});
+
+app.post('/api/admin/staff', authenticateToken, checkAdmin, (req, res) => {
+    const { username, password } = req.body;
+    if (!username || !password) return res.status(400).json({ error: "Missing details" });
+    
+    db.run("INSERT INTO users (username, password, role) VALUES (?, ?, 'staff')", [username, password], function(err) {
+        if (err) return res.status(400).json({ error: "User already exists or DB error" });
+        logAction(req.user.username, `Created staff account: ${username}`);
         res.json({ success: true });
     });
 });
 
-app.post('/api/settings/holidays', checkAdminPin, (req, res) => {
+app.delete('/api/admin/staff/:username', authenticateToken, checkAdmin, (req, res) => {
+    const { username } = req.params;
+    db.run("DELETE FROM users WHERE username = ? AND role = 'staff'", [username], function(err) {
+        if (err) return res.status(500).json({ error: "Database error" });
+        logAction(req.user.username, `Deleted staff account: ${username}`);
+        res.json({ success: true });
+    });
+});
+
+// Admin: View Logs
+app.get('/api/admin/logs', authenticateToken, checkAdmin, (req, res) => {
+    db.all("SELECT id, timestamp, username, action FROM logs ORDER BY id DESC LIMIT 100", (err, rows) => {
+        if (err) return res.status(500).json({ error: "Database error" });
+        res.json(rows);
+    });
+});
+
+app.post('/api/settings/holidays', authenticateToken, checkAdmin, (req, res) => {
     const { date } = req.body;
     if (!date) return res.status(400).json({ error: "Date required" });
 
@@ -90,7 +144,7 @@ app.post('/api/settings/holidays', checkAdminPin, (req, res) => {
     });
 });
 
-app.delete('/api/settings/holidays/:date', checkAdminPin, (req, res) => {
+app.delete('/api/settings/holidays/:date', authenticateToken, checkAdmin, (req, res) => {
     const { date } = req.params;
     db.get("SELECT value FROM settings WHERE key = 'closedDates'", (err, row) => {
         if (err) return res.status(500).json({ error: "Database error" });
@@ -107,6 +161,30 @@ app.delete('/api/settings/holidays/:date', checkAdminPin, (req, res) => {
 
 app.get('/api/bookings/:date', (req, res) => {
     const { date } = req.params;
+    db.all("SELECT * FROM bookings WHERE date = ?", [date], (err, rows) => {
+        if (err) return res.status(500).json({ error: "Database error" });
+        
+        const dayData = {};
+        rows.forEach(row => {
+            dayData[row.slot_key] = {
+                status: row.status,
+                name: row.name,
+                rollNo: row.roll_no,
+                department: row.department,
+                isUnder18: !!row.is_under_18,
+                duration: row.duration,
+                cancelCode: row.cancel_code,
+                parentSlot: row.parent_slot
+            };
+        });
+        res.json(dayData);
+    });
+});
+
+app.get('/api/staff/roster/:date', authenticateToken, (req, res) => {
+    const { date } = req.params;
+    logAction(req.user.username, `Viewed/Exported roster for ${date}`);
+    
     db.all("SELECT * FROM bookings WHERE date = ?", [date], (err, rows) => {
         if (err) return res.status(500).json({ error: "Database error" });
         
@@ -180,7 +258,7 @@ app.post('/api/bookings/cancel', (req, res) => {
     });
 });
 
-app.post('/api/admin/free', checkAdminPin, (req, res) => {
+app.post('/api/admin/free', authenticateToken, checkAdmin, (req, res) => {
     const { date, slot_key } = req.body;
     db.run("DELETE FROM bookings WHERE date = ? AND (slot_key = ? OR parent_slot = ?)", [date, slot_key, slot_key], function(err) {
         if (err) return res.status(500).json({ error: "Failed to cancel" });

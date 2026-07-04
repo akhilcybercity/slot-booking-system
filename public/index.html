@@ -19,7 +19,7 @@
         <nav class="header-nav">
             <button id="nav-book" class="nav-btn active">Book a Slot</button>
             <button id="nav-cancel" class="nav-btn">My Booking</button>
-            <button id="nav-staff" class="nav-btn outline">Staff</button>
+            <button id="nav-staff" class="nav-btn outline">Portal Login</button>
         </nav>
     </header>
 
@@ -102,15 +102,19 @@
             </section>
         </div>
 
-        <!-- View 3: Staff Login -->
+        <!-- View 3: Portal Login -->
         <div id="view-staff-login" class="view" style="display: none;">
             <section class="login-section panel" style="max-width: 400px; margin: 0 auto;">
-                <h2>Staff Login</h2>
-                <p class="subtitle">Enter your PIN to access the staff area.</p>
+                <h2>Portal Login</h2>
+                <p class="subtitle">Enter your username and password.</p>
                 <form id="staff-login-form">
                     <div class="input-group">
-                        <label for="staff-pin">PIN</label>
-                        <input type="password" id="staff-pin" required>
+                        <label for="login-username">USERNAME</label>
+                        <input type="text" id="login-username" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="login-password">PASSWORD</label>
+                        <input type="password" id="login-password" required>
                     </div>
                     <button type="submit" class="btn primary">Login</button>
                 </form>
@@ -119,10 +123,33 @@
 
         <!-- View 4: Staff Dashboard -->
         <div id="view-staff-dashboard" class="view" style="display: none;">
+            <section class="roster-section panel">
+                <h2>Staff Roster View</h2>
+                <p class="subtitle">View or export the day's bookings.</p>
+                <div class="roster-controls" style="display: flex; align-items: flex-end; gap: 1rem; margin-bottom: 2rem;">
+                    <div class="input-group" style="margin-bottom: 0;">
+                        <label for="staff-roster-date">DATE</label>
+                        <input type="date" id="staff-roster-date">
+                    </div>
+                    <button id="staff-export-csv-btn" class="btn secondary">Export CSV</button>
+                    <button id="staff-logout-btn" class="btn outline" style="margin-left: auto;">Logout</button>
+                </div>
+                <div id="staff-roster-list" class="roster-list">
+                    <!-- Dynamic roster items -->
+                </div>
+            </section>
+        </div>
+
+        <!-- View 5: Admin Dashboard -->
+        <div id="view-admin-dashboard" class="view" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h2 style="margin:0;">Admin Dashboard</h2>
+                <button id="admin-logout-btn" class="btn outline">Logout</button>
+            </div>
             
             <section class="holiday-section panel">
-                <h2>Closed dates / bank holidays</h2>
-                <p class="subtitle">Sundays and 2nd/4th Saturdays are closed automatically. Add any additional bank holidays SIB confirms (e.g. Diwali, Ganesh Chaturthi) here.</p>
+                <h2>Manage Holidays</h2>
+                <p class="subtitle">Sundays and 2nd/4th Saturdays are closed automatically. Add any additional bank holidays SIB confirms here.</p>
                 
                 <ul id="holiday-list" class="holiday-list">
                     <!-- Dynamic list items -->
@@ -140,31 +167,55 @@
             </section>
 
             <section class="roster-section panel">
-                <h2>Roster</h2>
-                <p class="subtitle">View or export the day's bookings, or free up a slot manually (e.g. a no-show).</p>
+                <h2>Manage Roster</h2>
+                <p class="subtitle">Free up a slot manually (e.g. a no-show) or export the day's bookings.</p>
                 
                 <div class="roster-controls" style="display: flex; align-items: flex-end; gap: 1rem; margin-bottom: 2rem;">
                     <div class="input-group" style="margin-bottom: 0;">
-                        <label for="roster-date">DATE</label>
-                        <input type="date" id="roster-date">
+                        <label for="admin-roster-date">DATE</label>
+                        <input type="date" id="admin-roster-date">
                     </div>
-                    <button id="export-csv-btn" class="btn secondary">Export CSV</button>
+                    <button id="admin-export-csv-btn" class="btn secondary">Export CSV</button>
                 </div>
 
-                <div id="roster-list" class="roster-list">
+                <div id="admin-roster-list" class="roster-list">
                     <!-- Dynamic roster items -->
                 </div>
             </section>
 
-            <section class="settings-section panel">
-                <h2>Change staff PIN</h2>
-                <form id="change-pin-form" style="display: flex; align-items: flex-end; gap: 1rem;">
+            <section class="staff-mgmt-section panel">
+                <h2>Manage Staff</h2>
+                <p class="subtitle">Create or remove staff accounts.</p>
+                <ul id="admin-staff-list" class="holiday-list" style="margin-bottom: 1rem;"></ul>
+                
+                <form id="add-staff-form" style="display: flex; gap: 1rem; align-items: flex-end;">
                     <div class="input-group" style="margin-bottom: 0;">
-                        <label for="new-pin">NEW PIN</label>
-                        <input type="text" id="new-pin" placeholder="4+ characters" minlength="4" required>
+                        <label for="new-staff-user">USERNAME</label>
+                        <input type="text" id="new-staff-user" required>
                     </div>
-                    <button type="submit" class="btn secondary">Update PIN</button>
+                    <div class="input-group" style="margin-bottom: 0;">
+                        <label for="new-staff-pass">PASSWORD</label>
+                        <input type="password" id="new-staff-pass" required>
+                    </div>
+                    <button type="submit" class="btn secondary">Add Staff</button>
                 </form>
+            </section>
+
+            <section class="logs-section panel">
+                <h2>Staff Activity Logs</h2>
+                <div style="max-height: 300px; overflow-y: auto;">
+                    <table class="slots-table" style="font-size: 0.9rem;">
+                        <thead>
+                            <tr>
+                                <th>TIME</th>
+                                <th>USER</th>
+                                <th>ACTION</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-logs-tbody">
+                        </tbody>
+                    </table>
+                </div>
             </section>
         </div>
     </main>

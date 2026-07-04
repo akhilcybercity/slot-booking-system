@@ -1,7 +1,8 @@
 // app.js
 
 let serverSettings = { closedDates: [] };
-let adminPin = null;
+let authToken = null;
+let userRole = null;
 
 // --- Constants & Config ---
 const START_HOUR = 10;
@@ -60,6 +61,7 @@ const viewBook = document.getElementById('view-book');
 const viewCancel = document.getElementById('view-cancel');
 const viewStaffLogin = document.getElementById('view-staff-login');
 const viewStaffDashboard = document.getElementById('view-staff-dashboard');
+const viewAdminDashboard = document.getElementById('view-admin-dashboard');
 
 const navBook = document.getElementById('nav-book');
 const navCancel = document.getElementById('nav-cancel');
@@ -81,14 +83,19 @@ const bookingForm = document.getElementById('booking-form');
 const findBookingForm = document.getElementById('find-booking-form');
 const cancelResult = document.getElementById('cancel-result');
 
-// Staff Elements
+// Staff/Admin Elements
 const staffLoginForm = document.getElementById('staff-login-form');
 const holidayList = document.getElementById('holiday-list');
 const addHolidayForm = document.getElementById('add-holiday-form');
-const rosterDate = document.getElementById('roster-date');
-const rosterList = document.getElementById('roster-list');
-const exportCsvBtn = document.getElementById('export-csv-btn');
-const changePinForm = document.getElementById('change-pin-form');
+const adminRosterDate = document.getElementById('admin-roster-date');
+const adminRosterList = document.getElementById('admin-roster-list');
+const staffRosterDate = document.getElementById('staff-roster-date');
+const staffRosterList = document.getElementById('staff-roster-list');
+const adminExportCsvBtn = document.getElementById('admin-export-csv-btn');
+const staffExportCsvBtn = document.getElementById('staff-export-csv-btn');
+const adminStaffList = document.getElementById('admin-staff-list');
+const addStaffForm = document.getElementById('add-staff-form');
+const adminLogsTbody = document.getElementById('admin-logs-tbody');
 
 let currentSelectedDate = '';
 let currentBookingSlot = null;
@@ -106,6 +113,8 @@ function showToast(msg, isError = false) {
 
 // --- API Helpers ---
 async function fetchAPI(endpoint, options = {}) {
+    options.headers = options.headers || {};
+    if (authToken) options.headers['x-auth-token'] = authToken;
     try {
         const res = await fetch(endpoint, options);
         const data = await res.json();
@@ -131,7 +140,8 @@ async function init() {
     const today = new Date().toISOString().split('T')[0];
     datePicker.value = today;
     datePicker.min = today; 
-    rosterDate.value = today;
+    if (adminRosterDate) adminRosterDate.value = today;
+    if (staffRosterDate) staffRosterDate.value = today;
     await handleDateChange(today);
 
     // Nav Listeners
@@ -161,12 +171,17 @@ async function init() {
     findBookingForm.addEventListener('submit', handleFindBooking);
     document.getElementById('confirm-cancel-btn').addEventListener('click', handleConfirmCancel);
 
-    // Staff View Listeners
+    // Staff/Admin View Listeners
     staffLoginForm.addEventListener('submit', handleStaffLogin);
     addHolidayForm.addEventListener('submit', handleAddHoliday);
-    rosterDate.addEventListener('change', (e) => renderRoster(e.target.value));
-    exportCsvBtn.addEventListener('click', handleExportCSV);
-    changePinForm.addEventListener('submit', handleChangePin);
+    adminRosterDate.addEventListener('change', (e) => renderRoster(e.target.value, 'admin'));
+    staffRosterDate.addEventListener('change', (e) => renderRoster(e.target.value, 'staff'));
+    adminExportCsvBtn.addEventListener('click', () => handleExportCSV(adminRosterDate.value, 'admin'));
+    staffExportCsvBtn.addEventListener('click', () => handleExportCSV(staffRosterDate.value, 'staff'));
+    addStaffForm.addEventListener('submit', handleAddStaff);
+    
+    document.getElementById('staff-logout-btn')?.addEventListener('click', handleLogout);
+    document.getElementById('admin-logout-btn')?.addEventListener('click', handleLogout);
 }
 
 // --- View Logic ---
@@ -175,6 +190,7 @@ function switchView(viewName) {
     viewCancel.style.display = 'none';
     viewStaffLogin.style.display = 'none';
     viewStaffDashboard.style.display = 'none';
+    viewAdminDashboard.style.display = 'none';
     
     navBook.classList.remove('active');
     navCancel.classList.remove('active');
@@ -192,10 +208,17 @@ function switchView(viewName) {
         document.getElementById('cancel-date').value = currentSelectedDate;
     } else if (viewName === 'staff') {
         navStaff.classList.add('active');
-        if (adminPin) {
-            viewStaffDashboard.style.display = 'block';
-            renderHolidays();
-            renderRoster(rosterDate.value);
+        if (authToken) {
+            if (userRole === 'admin') {
+                viewAdminDashboard.style.display = 'block';
+                renderHolidays();
+                renderRoster(adminRosterDate.value, 'admin');
+                loadAdminStaffList();
+                loadAdminLogs();
+            } else {
+                viewStaffDashboard.style.display = 'block';
+                renderRoster(staffRosterDate.value, 'staff');
+            }
         } else {
             viewStaffLogin.style.display = 'block';
         }
@@ -488,23 +511,36 @@ async function handleConfirmCancel() {
     }
 }
 
-// --- Staff Area Logic ---
+// --- Auth & Admin/Staff Logic ---
 async function handleStaffLogin(e) {
     e.preventDefault();
-    const enteredPin = document.getElementById('staff-pin').value;
+    const username = document.getElementById('login-username').value;
+    const password = document.getElementById('login-password').value;
     try {
-        await fetchAPI('/api/admin/login', {
+        const res = await fetchAPI('/api/auth/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pin: enteredPin })
+            body: JSON.stringify({ username, password })
         });
         
-        adminPin = enteredPin;
-        document.getElementById('staff-pin').value = '';
+        authToken = res.token;
+        userRole = res.role;
+        document.getElementById('login-username').value = '';
+        document.getElementById('login-password').value = '';
         switchView('staff');
     } catch (e) {}
 }
 
+async function handleLogout() {
+    try {
+        await fetchAPI('/api/auth/logout', { method: 'POST' });
+    } catch(e) {}
+    authToken = null;
+    userRole = null;
+    switchView('book');
+}
+
+// ... Holidays ...
 function renderHolidays() {
     holidayList.innerHTML = '';
     
@@ -520,16 +556,12 @@ function renderHolidays() {
         btn.innerHTML = '&times;';
         btn.onclick = async () => {
             try {
-                const res = await fetchAPI(`/api/settings/holidays/${dateStr}`, {
-                    method: 'DELETE',
-                    headers: { 'x-admin-pin': adminPin }
-                });
+                const res = await fetchAPI(`/api/settings/holidays/${dateStr}`, { method: 'DELETE' });
                 serverSettings.closedDates = res.closedDates;
                 renderHolidays();
                 if(dateStr === currentSelectedDate) handleDateChange(currentSelectedDate);
             } catch(e) {}
         };
-        
         li.appendChild(btn);
         holidayList.appendChild(li);
     });
@@ -538,12 +570,11 @@ function renderHolidays() {
 async function handleAddHoliday(e) {
     e.preventDefault();
     const dateStr = document.getElementById('new-holiday-date').value;
-    
     if (!serverSettings.closedDates.includes(dateStr)) {
         try {
             const res = await fetchAPI('/api/settings/holidays', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'x-admin-pin': adminPin },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ date: dateStr })
             });
             serverSettings.closedDates = res.closedDates;
@@ -554,11 +585,69 @@ async function handleAddHoliday(e) {
     }
 }
 
-async function renderRoster(dateStr) {
-    rosterList.innerHTML = 'Loading...';
+// ... Admin Staff Mgmt ...
+async function loadAdminStaffList() {
     try {
-        const dayData = await fetchAPI(`/api/bookings/${dateStr}`);
-        rosterList.innerHTML = '';
+        const staffList = await fetchAPI('/api/admin/staff');
+        adminStaffList.innerHTML = '';
+        staffList.forEach(s => {
+            const li = document.createElement('li');
+            li.textContent = s.username;
+            const btn = document.createElement('button');
+            btn.className = 'remove-btn';
+            btn.innerHTML = '&times;';
+            btn.onclick = async () => {
+                if(confirm('Delete this staff account?')) {
+                    await fetchAPI(`/api/admin/staff/${s.username}`, { method: 'DELETE' });
+                    loadAdminStaffList();
+                }
+            };
+            li.appendChild(btn);
+            adminStaffList.appendChild(li);
+        });
+    } catch(e) {}
+}
+
+async function handleAddStaff(e) {
+    e.preventDefault();
+    const user = document.getElementById('new-staff-user').value;
+    const pass = document.getElementById('new-staff-pass').value;
+    try {
+        await fetchAPI('/api/admin/staff', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: user, password: pass })
+        });
+        document.getElementById('new-staff-user').value = '';
+        document.getElementById('new-staff-pass').value = '';
+        loadAdminStaffList();
+    } catch(e) {}
+}
+
+async function loadAdminLogs() {
+    try {
+        const logs = await fetchAPI('/api/admin/logs');
+        adminLogsTbody.innerHTML = '';
+        logs.forEach(log => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${new Date(log.timestamp).toLocaleString()}</td>
+                <td>${log.username}</td>
+                <td>${log.action}</td>
+            `;
+            adminLogsTbody.appendChild(tr);
+        });
+    } catch(e) {}
+}
+
+// ... Roster ...
+async function renderRoster(dateStr, role) {
+    const rList = role === 'admin' ? adminRosterList : staffRosterList;
+    rList.innerHTML = 'Loading...';
+    try {
+        const endpoint = role === 'admin' ? `/api/bookings/${dateStr}` : `/api/staff/roster/${dateStr}`;
+        const dayData = await fetchAPI(endpoint);
+        rList.innerHTML = '';
         let hasBookings = false;
         const bookings = [];
 
@@ -591,49 +680,47 @@ async function renderRoster(dateStr) {
             let subtext = `${b.compName} &middot; ${b.startStr}–${b.endStr}`;
             if(b.data.isUnder18) subtext += ` &middot; under 18`;
 
+            let freeBtn = role === 'admin' 
+                ? `<button class="btn danger" onclick="adminFreeSlot('${dateStr}', '${b.key}')">Free slot</button>`
+                : '';
+
             item.innerHTML = `
                 <div class="roster-details">
                     <h4>${b.data.name.toUpperCase()} (${b.data.rollNo}, ${b.data.department || 'N/A'})</h4>
                     <p>${subtext}</p>
                 </div>
-                <button class="btn danger" onclick="staffFreeSlot('${dateStr}', '${b.key}')">Free slot</button>
+                ${freeBtn}
             `;
-            rosterList.appendChild(item);
+            rList.appendChild(item);
         });
 
         if (!hasBookings) {
-            rosterList.innerHTML = '<p style="color: var(--text-muted); font-style: italic;">No bookings for this date.</p>';
+            rList.innerHTML = '<p style="color: var(--text-muted); font-style: italic;">No bookings for this date.</p>';
         }
     } catch(e) {
-        rosterList.innerHTML = 'Error loading roster.';
+        rList.innerHTML = 'Error loading roster.';
     }
 }
 
-window.staffFreeSlot = async function(dateStr, key) {
-    if (!adminPin) {
-        showToast('Session expired. Please log in to Staff area again.', true);
-        return;
-    }
+window.adminFreeSlot = async function(dateStr, key) {
     if(confirm('Are you sure you want to cancel this booking and free the slot?')) {
         try {
             await fetchAPI('/api/admin/free', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'x-admin-pin': adminPin },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ date: dateStr, slot_key: key })
             });
             showToast('Slot freed successfully. ✓');
-            renderRoster(dateStr);
+            renderRoster(dateStr, 'admin');
             if(currentSelectedDate === dateStr) loadAndRenderSlots(dateStr);
-        } catch(e) {
-            // Error already shown by showToast in fetchAPI
-        }
+        } catch(e) {}
     }
 };
 
-async function handleExportCSV() {
-    const dateStr = rosterDate.value;
+async function handleExportCSV(dateStr, role) {
     try {
-        const dayData = await fetchAPI(`/api/bookings/${dateStr}`);
+        const endpoint = role === 'admin' ? `/api/bookings/${dateStr}` : `/api/staff/roster/${dateStr}`;
+        const dayData = await fetchAPI(endpoint);
         
         let csvContent = "data:text/csv;charset=utf-8,";
         csvContent += "Computer,Time,Name,Roll No,Department,Duration,Under 18\r\n";
@@ -665,21 +752,6 @@ async function handleExportCSV() {
     } catch(e) {
         alert("Failed to export CSV");
     }
-}
-
-async function handleChangePin(e) {
-    e.preventDefault();
-    const newPin = document.getElementById('new-pin').value;
-    try {
-        await fetchAPI('/api/settings/pin', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-admin-pin': adminPin },
-            body: JSON.stringify({ newPin })
-        });
-        adminPin = newPin; // Update local token
-        alert('PIN updated successfully.');
-        document.getElementById('new-pin').value = '';
-    } catch(e) {}
 }
 
 // Boot up

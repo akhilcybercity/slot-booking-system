@@ -38,6 +38,32 @@ db.serialize(() => {
         }
     });
 
+    // Users table for Admin and Staff
+    db.run(`
+        CREATE TABLE IF NOT EXISTS users (
+            username TEXT PRIMARY KEY,
+            password TEXT NOT NULL,
+            role TEXT NOT NULL
+        )
+    `);
+
+    // Initialize default admin
+    db.get("SELECT username FROM users WHERE username = 'admin'", (err, row) => {
+        if (!row) {
+            db.run("INSERT INTO users (username, password, role) VALUES ('admin', 'admin123', 'admin')");
+        }
+    });
+
+    // Logs table
+    db.run(`
+        CREATE TABLE IF NOT EXISTS logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp DATETIME DEFAULT (datetime('now','localtime')),
+            username TEXT,
+            action TEXT
+        )
+    `);
+
     // Initialize closedDates array as JSON string
     db.get("SELECT value FROM settings WHERE key = 'closedDates'", (err, row) => {
         if (!row) {
