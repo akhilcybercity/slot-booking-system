@@ -288,6 +288,16 @@ async function loadAndRenderSlots(dateStr) {
 
 function renderSlots(dateStr, dayData) {
     tbody.innerHTML = '';
+    
+    // Check if we are looking at today
+    const now = new Date();
+    const istTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
+    const todayStr = istTime.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }); // YYYY-MM-DD
+    
+    const isToday = dateStr === todayStr;
+    const currentH = istTime.getHours();
+    const currentM = istTime.getMinutes();
+
     ALL_SLOTS.forEach((slot, index) => {
         const tr = document.createElement('tr');
         
@@ -321,9 +331,23 @@ function renderSlots(dateStr, dayData) {
                     `;
                 }
             } else {
-                td.className = 'slot-cell slot-available';
-                td.innerHTML = `${slot.startStr} &middot; Reserve`;
-                td.addEventListener('click', () => openBookingModal(dateStr, slot, comp, index));
+                // Parse slot start time for past check
+                const [slotHStr, slotMStr] = slot.id.split(':');
+                const slotH = parseInt(slotHStr, 10);
+                const slotM = parseInt(slotMStr, 10);
+                
+                const isPast = isToday && (currentH > slotH || (currentH === slotH && currentM >= slotM));
+                
+                if (isPast) {
+                    td.className = 'slot-cell';
+                    td.style.backgroundColor = '#f0f0f0';
+                    td.style.color = '#999';
+                    td.innerHTML = `${slot.startStr} &middot; <span style="font-size:0.8rem">Passed</span>`;
+                } else {
+                    td.className = 'slot-cell slot-available';
+                    td.innerHTML = `${slot.startStr} &middot; Reserve`;
+                    td.addEventListener('click', () => openBookingModal(dateStr, slot, comp, index));
+                }
             }
             tr.appendChild(td);
         });
