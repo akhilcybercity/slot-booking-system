@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const db = require('./database');
+const db = require('./database'); // This is now a pg Pool
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -34,20 +34,21 @@ const checkAdmin = (req, res, next) => {
 };
 
 // Helper for logging actions
-const logAction = (username, action) => {
-    db.run("INSERT INTO logs (username, action) VALUES (?, ?)", [username, action], err => {
-        if (err) console.error("Logging error", err);
-    });
+const logAction = async (username, action) => {
+    try {
+        await db.query("INSERT INTO logs (username, action) VALUES ($1, $2)", [username, action]);
+    } catch (err) {
+        console.error("Logging error", err);
+    }
 };
 
 // --- Settings Routes ---
 
-app.get('/api/settings', (req, res) => {
-    db.all("SELECT key, value FROM settings", (err, rows) => {
-        if (err) return res.status(500).json({ error: "Database error" });
-        
+app.get('/api/settings', async (req, res) => {
+    try {
+        const result = await db.query("SELECT key, value FROM settings");
         const settings = {};
-        rows.forEach(row => {
+        result.rows.forEach(row => {
             if (row.key === 'closedDates') {
                 settings[row.key] = JSON.parse(row.value);
             } else {
@@ -55,32 +56,33 @@ app.get('/api/settings', (req, res) => {
             }
         });
         
-        // Don't send PIN to unauthenticated users unless they specifically need it
-        // Actually, the frontend checks if entered PIN matches the saved PIN locally currently. 
-        // We shouldn't send the PIN in a public GET request. We should change frontend auth to 
-        // make an API call to verify the PIN instead.
-        // For now, to keep frontend changes minimal, we can return it, but it's insecure.
-        // Let's create a specific login endpoint instead.
         const responseSettings = { closedDates: settings.closedDates };
         res.json(responseSettings);
-    });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Database error" });
+    }
 });
 
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).json({ error: "Missing credentials" });
     
-    db.get("SELECT username, role FROM users WHERE username = ? AND password = ?", [username, password], (err, row) => {
-        if (err) return res.status(500).json({ error: "Database error" });
+    try {
+        const result = await db.query("SELECT username, role FROM users WHERE username = $1 AND password = $2", [username, password]);
+        const row = result.rows[0];
         if (row) {
             const token = crypto.randomBytes(32).toString('hex');
             activeTokens[token] = { username: row.username, role: row.role };
-            logAction(row.username, 'Login successful');
+            await logAction(row.username, 'Login successful');
             res.json({ success: true, token, role: row.role, username: row.username });
         } else {
             res.status(401).json({ error: "Invalid credentials" });
         }
-    });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Database error" });
+    }
 });
 
 app.post('/api/auth/logout', authenticateToken, (req, res) => {
@@ -90,82 +92,99 @@ app.post('/api/auth/logout', authenticateToken, (req, res) => {
 });
 
 // Admin: Manage Staff
-app.get('/api/admin/staff', authenticateToken, checkAdmin, (req, res) => {
-    db.all("SELECT username, role FROM users WHERE role = 'staff'", (err, rows) => {
-        if (err) return res.status(500).json({ error: "Database error" });
-        res.json(rows);
-    });
+app.get('/api/admin/staff', authenticateToken, checkAdmin, async (req, res) => {
+    try {
+        const result = await db.query("SELECT username, role FROM users WHERE role = 'staff'");
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Database error" });
+    }
 });
 
-app.post('/api/admin/staff', authenticateToken, checkAdmin, (req, res) => {
+app.post('/api/admin/staff', authenticateToken, checkAdmin, async (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).json({ error: "Missing details" });
     
-    db.run("INSERT INTO users (username, password, role) VALUES (?, ?, 'staff')", [username, password], function(err) {
-        if (err) return res.status(400).json({ error: "User already exists or DB error" });
-        logAction(req.user.username, `Created staff account: ${username}`);
+    try {
+        await db.query("INSERT INTO users (username, password, role) VALUES ($1, $2, 'staff')", [username, password]);
+        await logAction(req.user.username, `Created staff account: ${username}`);
         res.json({ success: true });
-    });
+    } catch (err) {
+        console.error(err);
+        res.status(400).json({ error: "User already exists or DB error" });
+    }
 });
 
-app.delete('/api/admin/staff/:username', authenticateToken, checkAdmin, (req, res) => {
+app.delete('/api/admin/staff/:username', authenticateToken, checkAdmin, async (req, res) => {
     const { username } = req.params;
-    db.run("DELETE FROM users WHERE username = ? AND role = 'staff'", [username], function(err) {
-        if (err) return res.status(500).json({ error: "Database error" });
-        logAction(req.user.username, `Deleted staff account: ${username}`);
+    try {
+        await db.query("DELETE FROM users WHERE username = $1 AND role = 'staff'", [username]);
+        await logAction(req.user.username, `Deleted staff account: ${username}`);
         res.json({ success: true });
-    });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Database error" });
+    }
 });
 
 // Admin: View Logs
-app.get('/api/admin/logs', authenticateToken, checkAdmin, (req, res) => {
-    db.all("SELECT id, timestamp, username, action FROM logs ORDER BY id DESC LIMIT 100", (err, rows) => {
-        if (err) return res.status(500).json({ error: "Database error" });
-        res.json(rows);
-    });
+app.get('/api/admin/logs', authenticateToken, checkAdmin, async (req, res) => {
+    try {
+        const result = await db.query("SELECT id, timestamp, username, action FROM logs ORDER BY id DESC LIMIT 100");
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Database error" });
+    }
 });
 
-app.post('/api/settings/holidays', authenticateToken, checkAdmin, (req, res) => {
+app.post('/api/settings/holidays', authenticateToken, checkAdmin, async (req, res) => {
     const { date } = req.body;
     if (!date) return res.status(400).json({ error: "Date required" });
 
-    db.get("SELECT value FROM settings WHERE key = 'closedDates'", (err, row) => {
-        if (err) return res.status(500).json({ error: "Database error" });
-        let closedDates = JSON.parse(row.value);
+    try {
+        const result = await db.query("SELECT value FROM settings WHERE key = 'closedDates'");
+        const row = result.rows[0];
+        let closedDates = row ? JSON.parse(row.value) : [];
         if (!closedDates.includes(date)) {
             closedDates.push(date);
-            db.run("UPDATE settings SET value = ? WHERE key = 'closedDates'", [JSON.stringify(closedDates)], function(err) {
-                if (err) return res.status(500).json({ error: "Database error" });
-                res.json({ success: true, closedDates });
-            });
-        } else {
-            res.json({ success: true, closedDates });
+            await db.query("UPDATE settings SET value = $1 WHERE key = 'closedDates'", [JSON.stringify(closedDates)]);
         }
-    });
+        res.json({ success: true, closedDates });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Database error" });
+    }
 });
 
-app.delete('/api/settings/holidays/:date', authenticateToken, checkAdmin, (req, res) => {
+app.delete('/api/settings/holidays/:date', authenticateToken, checkAdmin, async (req, res) => {
     const { date } = req.params;
-    db.get("SELECT value FROM settings WHERE key = 'closedDates'", (err, row) => {
-        if (err) return res.status(500).json({ error: "Database error" });
-        let closedDates = JSON.parse(row.value);
-        closedDates = closedDates.filter(d => d !== date);
-        db.run("UPDATE settings SET value = ? WHERE key = 'closedDates'", [JSON.stringify(closedDates)], function(err) {
-            if (err) return res.status(500).json({ error: "Database error" });
+    try {
+        const result = await db.query("SELECT value FROM settings WHERE key = 'closedDates'");
+        const row = result.rows[0];
+        if (row) {
+            let closedDates = JSON.parse(row.value);
+            closedDates = closedDates.filter(d => d !== date);
+            await db.query("UPDATE settings SET value = $1 WHERE key = 'closedDates'", [JSON.stringify(closedDates)]);
             res.json({ success: true, closedDates });
-        });
-    });
+        } else {
+            res.json({ success: true, closedDates: [] });
+        }
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Database error" });
+    }
 });
 
 // --- Booking Routes ---
 
-app.get('/api/bookings/:date', (req, res) => {
+app.get('/api/bookings/:date', async (req, res) => {
     const { date } = req.params;
-    db.all("SELECT * FROM bookings WHERE date = ?", [date], (err, rows) => {
-        if (err) return res.status(500).json({ error: "Database error" });
-        
+    try {
+        const result = await db.query("SELECT * FROM bookings WHERE date = $1", [date]);
         const dayData = {};
-        rows.forEach(row => {
+        result.rows.forEach(row => {
             dayData[row.slot_key] = {
                 status: row.status,
                 name: row.name,
@@ -178,18 +197,20 @@ app.get('/api/bookings/:date', (req, res) => {
             };
         });
         res.json(dayData);
-    });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Database error" });
+    }
 });
 
-app.get('/api/staff/roster/:date', authenticateToken, (req, res) => {
+app.get('/api/staff/roster/:date', authenticateToken, async (req, res) => {
     const { date } = req.params;
-    logAction(req.user.username, `Viewed/Exported roster for ${date}`);
+    await logAction(req.user.username, `Viewed/Exported roster for ${date}`);
     
-    db.all("SELECT * FROM bookings WHERE date = ?", [date], (err, rows) => {
-        if (err) return res.status(500).json({ error: "Database error" });
-        
+    try {
+        const result = await db.query("SELECT * FROM bookings WHERE date = $1", [date]);
         const dayData = {};
-        rows.forEach(row => {
+        result.rows.forEach(row => {
             dayData[row.slot_key] = {
                 status: row.status,
                 name: row.name,
@@ -202,68 +223,74 @@ app.get('/api/staff/roster/:date', authenticateToken, (req, res) => {
             };
         });
         res.json(dayData);
-    });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Database error" });
+    }
 });
 
-app.post('/api/bookings', (req, res) => {
+app.post('/api/bookings', async (req, res) => {
     const { date, slot_key, name, rollNo, department, isUnder18, duration, cancelCode, continuedSlotKey } = req.body;
     
-    // In a real app, we'd use a transaction here. For SQLite, we can just run sequentially,
-    // but check for conflicts first.
-    db.get("SELECT id FROM bookings WHERE date = ? AND slot_key = ?", [date, slot_key], (err, row) => {
-        if (err) return res.status(500).json({ error: "Database error" });
-        if (row) return res.status(409).json({ error: "Slot already booked" });
+    try {
+        const checkResult = await db.query("SELECT id FROM bookings WHERE date = $1 AND slot_key = $2", [date, slot_key]);
+        if (checkResult.rows.length > 0) return res.status(409).json({ error: "Slot already booked" });
         
         const id1 = `${date}_${slot_key}`;
         
-        db.run(
-            "INSERT INTO bookings (id, date, slot_key, status, name, roll_no, department, is_under_18, duration, cancel_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            [id1, date, slot_key, 'booked', name, rollNo, department, isUnder18 ? 1 : 0, duration, cancelCode],
-            function(err) {
-                if (err) return res.status(500).json({ error: "Failed to book" });
-                
-                if (isUnder18 && continuedSlotKey) {
-                    const id2 = `${date}_${continuedSlotKey}`;
-                    db.run(
-                        "INSERT INTO bookings (id, date, slot_key, status, parent_slot) VALUES (?, ?, ?, ?, ?)",
-                        [id2, date, continuedSlotKey, 'continued', slot_key],
-                        function(err2) {
-                            if (err2) console.error("Failed to book continued slot", err2);
-                            res.json({ success: true });
-                        }
-                    );
-                } else {
-                    res.json({ success: true });
-                }
-            }
+        await db.query(
+            "INSERT INTO bookings (id, date, slot_key, status, name, roll_no, department, is_under_18, duration, cancel_code) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+            [id1, date, slot_key, 'booked', name, rollNo, department, isUnder18 ? 1 : 0, duration, cancelCode]
         );
-    });
+                
+        if (isUnder18 && continuedSlotKey) {
+            const id2 = `${date}_${continuedSlotKey}`;
+            try {
+                await db.query(
+                    "INSERT INTO bookings (id, date, slot_key, status, parent_slot) VALUES ($1, $2, $3, $4, $5)",
+                    [id2, date, continuedSlotKey, 'continued', slot_key]
+                );
+            } catch (err2) {
+                console.error("Failed to book continued slot", err2);
+            }
+        } 
+        res.json({ success: true });
+        
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Failed to book" });
+    }
 });
 
-app.post('/api/bookings/cancel', (req, res) => {
+app.post('/api/bookings/cancel', async (req, res) => {
     const { date, slot_key, code } = req.body;
     
-    db.get("SELECT cancel_code, duration FROM bookings WHERE date = ? AND slot_key = ?", [date, slot_key], (err, row) => {
-        if (err) return res.status(500).json({ error: "Database error" });
+    try {
+        const result = await db.query("SELECT cancel_code, duration FROM bookings WHERE date = $1 AND slot_key = $2", [date, slot_key]);
+        const row = result.rows[0];
         if (!row) return res.status(404).json({ error: "Booking not found" });
         
         if (row.cancel_code === code) {
-            db.run("DELETE FROM bookings WHERE date = ? AND (slot_key = ? OR parent_slot = ?)", [date, slot_key, slot_key], function(err) {
-                if (err) return res.status(500).json({ error: "Failed to cancel" });
-                res.json({ success: true });
-            });
+            await db.query("DELETE FROM bookings WHERE date = $1 AND (slot_key = $2 OR parent_slot = $3)", [date, slot_key, slot_key]);
+            res.json({ success: true });
         } else {
             res.status(401).json({ error: "Incorrect cancellation code" });
         }
-    });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Failed to cancel" });
+    }
 });
 
-app.post('/api/admin/free', authenticateToken, checkAdmin, (req, res) => {
+app.post('/api/admin/free', authenticateToken, checkAdmin, async (req, res) => {
     const { date, slot_key } = req.body;
-    db.run("DELETE FROM bookings WHERE date = ? AND (slot_key = ? OR parent_slot = ?)", [date, slot_key, slot_key], function(err) {
-        if (err) return res.status(500).json({ error: "Failed to cancel" });
+    try {
+        await db.query("DELETE FROM bookings WHERE date = $1 AND (slot_key = $2 OR parent_slot = $3)", [date, slot_key, slot_key]);
         res.json({ success: true });
-    });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Failed to cancel" });
+    }
 });
 
 
