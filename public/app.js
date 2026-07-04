@@ -681,7 +681,7 @@ async function renderRoster(dateStr, role) {
             if(b.data.isUnder18) subtext += ` &middot; under 18`;
 
             let freeBtn = role === 'admin' 
-                ? `<button class="btn danger" onclick="adminFreeSlot('${dateStr}', '${b.key}')">Free slot</button>`
+                ? `<button type="button" class="btn danger" onclick="adminFreeSlot('${dateStr}', '${b.key}')">Free slot</button>`
                 : '';
 
             item.innerHTML = `
