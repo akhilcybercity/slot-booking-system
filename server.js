@@ -255,6 +255,15 @@ app.post('/api/bookings', async (req, res) => {
         const [checkRows] = await db.query("SELECT id FROM bookings WHERE date = ? AND slot_key = ?", [date, slot_key]);
         if (checkRows.length > 0) return res.status(409).json({ error: "Slot already booked" });
         
+        // Prevent duplicate bookings by the same Register/Roll No on the same day
+        const [rollRows] = await db.query("SELECT id FROM bookings WHERE date = ? AND roll_no = ?", [date, rollNo]);
+        if (rollRows.length > 0) return res.status(409).json({ error: "This Register / Roll No. has already booked a slot today." });
+        
+        if (isUnder18 && continuedSlotKey) {
+            const [contCheckRows] = await db.query("SELECT id FROM bookings WHERE date = ? AND slot_key = ?", [date, continuedSlotKey]);
+            if (contCheckRows.length > 0) return res.status(409).json({ error: "The next slot is already booked, cannot reserve 20 minutes." });
+        }
+        
         const id1 = `${date}_${slot_key}`;
         
         await db.query(

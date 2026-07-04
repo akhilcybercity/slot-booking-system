@@ -416,7 +416,8 @@ async function handleBookingSubmit(e) {
         successModal.style.display = 'flex';
         await loadAndRenderSlots(currentBookingSlot.date);
     } catch (e) {
-        // Error handled by fetchAPI
+        // Error already handled by fetchAPI with toast, but adding a true pop-up alert as requested.
+        alert(e.message || "Failed to book slot.");
     }
 }
 
