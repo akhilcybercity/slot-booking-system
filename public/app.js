@@ -118,6 +118,10 @@ async function fetchAPI(endpoint, options = {}) {
     try {
         const res = await fetch(endpoint, options);
         const data = await res.json();
+        if (res.status === 401 || res.status === 403) {
+            handleLogout();
+            throw new Error('Session expired. Please log in again.');
+        }
         if (!res.ok) throw new Error(data.error || 'Server error');
         return data;
     } catch (err) {
