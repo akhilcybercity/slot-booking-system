@@ -81,6 +81,12 @@ async function initDB() {
             await pool.query("INSERT INTO settings (\`key\`, value) VALUES ('numComputers', '2')");
         }
 
+        // Initialize allowUnder18
+        const [allowUnder18Res] = await pool.query("SELECT value FROM settings WHERE \`key\` = 'allowUnder18'");
+        if (allowUnder18Res.length === 0) {
+            await pool.query("INSERT INTO settings (\`key\`, value) VALUES ('allowUnder18', 'false')");
+        }
+
         console.log("Database initialized successfully.");
     } catch (err) {
         console.error("Database initialization error:", err);

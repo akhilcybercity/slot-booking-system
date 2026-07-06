@@ -379,7 +379,7 @@ function renderSlots(dateStr, dayData) {
 }
 
 // --- Booking Logic (Client) ---
-function openBookingModal(dateStr, slot, comp, slotIndex) {
+window.openBookingModal = function(dateStr, slot, comp, slotIndex) {
     currentBookingSlot = {
         date: dateStr,
         timeId: slot.id,
@@ -389,23 +389,38 @@ function openBookingModal(dateStr, slot, comp, slotIndex) {
         index: slotIndex
     };
 
-    const compName = comp === 'C1' ? 'Computer 1' : 'Computer 2';
+    const compName = 'Computer ' + comp.replace('C', '');
     document.getElementById('modal-slot-info').innerHTML = `${compName} &middot; ${slot.startStr} – ${slot.endStr}`;
-    
-    const isNextAvailable = checkNextSlotAvailable(dateStr, comp, slotIndex);
-    const under18Checkbox = document.getElementById('under-18');
-    
-    if (!isNextAvailable) {
-        under18Checkbox.disabled = true;
-        under18Checkbox.parentElement.style.opacity = '0.5';
-    } else {
-        under18Checkbox.disabled = false;
-        under18Checkbox.parentElement.style.opacity = '1';
-    }
-
     bookingForm.reset();
+    
+    // Check if the next slot is available (required for 20-min under-18 bookings)
+    const isNextAvailable = checkNextSlotAvailable(dateStr, comp, slotIndex);
+    
+    // Handle Under-18 restriction
+    const u18Checkbox = document.getElementById('under-18');
+    const u18Label = document.querySelector('label[for="under-18"]');
+    
+    if (serverSettings.allowUnder18 === false) {
+        u18Checkbox.disabled = true;
+        u18Checkbox.checked = false;
+        u18Checkbox.parentElement.style.opacity = '0.5';
+        u18Label.innerHTML = 'Under 18 <i>(Temporarily Paused)</i>';
+        u18Label.style.color = '#e74c3c';
+    } else if (!isNextAvailable) {
+        u18Checkbox.disabled = true;
+        u18Checkbox.checked = false;
+        u18Checkbox.parentElement.style.opacity = '0.5';
+        u18Label.innerHTML = 'Under 18 (Next slot unavailable)';
+        u18Label.style.color = 'var(--text-color)';
+    } else {
+        u18Checkbox.disabled = false;
+        u18Checkbox.parentElement.style.opacity = '1';
+        u18Label.innerHTML = 'Under 18 (Reserves 20 minutes)';
+        u18Label.style.color = 'var(--text-color)';
+    }
+    
     bookingModal.style.display = 'flex';
-}
+};
 
 function checkNextSlotAvailable(dateStr, comp, currentIndex) {
     if (currentIndex + 1 >= ALL_SLOTS.length) return false;
@@ -619,17 +634,37 @@ async function handlePasswordChange(e) {
 
 window.handleUpdateComputers = async function(e) {
     e.preventDefault();
-    const numComputers = parseInt(document.getElementById('num-computers-input').value);
+    const numComputers = document.getElementById('num-computers-input').value;
+    
     try {
         await fetchAPI('/api/admin/settings', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ numComputers })
+            body: JSON.stringify({ numComputers: parseInt(numComputers) })
         });
-        showToast('Computer settings updated successfully.');
+        showToast("Number of computers updated successfully. Refreshing...");
         setTimeout(() => location.reload(), 1500);
-    } catch (err) {}
-}
+    } catch (err) {
+        // Error handled by fetchAPI
+    }
+};
+
+window.handleUpdateUnder18 = async function(e) {
+    e.preventDefault();
+    const allow = document.getElementById('allow-under18-checkbox').checked;
+    
+    try {
+        await fetchAPI('/api/admin/allow-under-18', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ allow })
+        });
+        showToast("Under 18 settings updated successfully. Refreshing...");
+        setTimeout(() => location.reload(), 1500);
+    } catch (err) {
+        // Error handled by fetchAPI
+    }
+};
 
 function renderAdminDashboard() {
     viewAdminDashboard.style.display = 'block';
@@ -642,6 +677,12 @@ function renderAdminDashboard() {
     const numCompsInput = document.getElementById('num-computers-input');
     if (numCompsInput) {
         numCompsInput.value = NUM_COMPUTERS;
+    }
+    
+    // Set the initial value for the allow under-18 checkbox
+    const allowUnder18Cb = document.getElementById('allow-under18-checkbox');
+    if (allowUnder18Cb) {
+        allowUnder18Cb.checked = !!serverSettings.allowUnder18;
     }
 }
 

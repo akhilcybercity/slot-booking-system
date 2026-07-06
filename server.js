@@ -58,7 +58,8 @@ app.get('/api/settings', async (req, res) => {
         
         const responseSettings = { 
             closedDates: settings.closedDates,
-            numComputers: parseInt(settings.numComputers) || 2
+            numComputers: parseInt(settings.numComputers) || 2,
+            allowUnder18: settings.allowUnder18 === 'true'
         };
         res.json(responseSettings);
     } catch (err) {
@@ -121,6 +122,18 @@ app.post('/api/admin/settings', authenticateToken, checkAdmin, async (req, res) 
     try {
         await db.query("UPDATE settings SET value = ? WHERE `key` = 'numComputers'", [numComputers.toString()]);
         await logAction(req.user.username, `Updated number of computers to ${numComputers}`);
+        res.json({ success: true });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Database error" });
+    }
+});
+
+app.post('/api/admin/allow-under-18', authenticateToken, checkAdmin, async (req, res) => {
+    const { allow } = req.body;
+    try {
+        await db.query("UPDATE settings SET value = ? WHERE `key` = 'allowUnder18'", [allow ? 'true' : 'false']);
+        await logAction(req.user.username, `Set allow under 18 to ${allow}`);
         res.json({ success: true });
     } catch (err) {
         console.error(err);
@@ -278,9 +291,15 @@ app.post('/api/bookings', async (req, res) => {
         const [rollRows] = await db.query("SELECT id FROM bookings WHERE date = ? AND UPPER(TRIM(roll_no)) = ?", [date, trimmedRollNo]);
         if (rollRows.length > 0) return res.status(409).json({ error: "This Register / Roll No. has already booked a slot today." });
         
-        if (isUnder18 && continuedSlotKey) {
-            const [contCheckRows] = await db.query("SELECT id FROM bookings WHERE date = ? AND slot_key = ?", [date, continuedSlotKey]);
-            if (contCheckRows.length > 0) return res.status(409).json({ error: "The next slot is already booked, cannot reserve 20 minutes." });
+        if (isUnder18) {
+            const [allowRes] = await db.query("SELECT value FROM settings WHERE `key` = 'allowUnder18'");
+            if (allowRes.length === 0 || allowRes[0].value === 'false') {
+                return res.status(403).json({ error: "Under 18 bookings are temporarily paused." });
+            }
+            if (continuedSlotKey) {
+                const [contCheckRows] = await db.query("SELECT id FROM bookings WHERE date = ? AND slot_key = ?", [date, continuedSlotKey]);
+                if (contCheckRows.length > 0) return res.status(409).json({ error: "The next slot is already booked, cannot reserve 20 minutes." });
+            }
         }
         
         // Prevent booking slots that have already passed today

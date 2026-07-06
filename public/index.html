@@ -246,6 +246,18 @@
                     <button type="submit" class="btn secondary">Update</button>
                 </form>
             </section>
+            
+            <section class="under18-mgmt-section panel">
+                <h2>Under-18 Bookings</h2>
+                <p class="subtitle">Temporarily pause or allow students under 18 from booking 20-minute slots.</p>
+                <form id="update-under18-form" style="display: flex; gap: 1rem; align-items: flex-end;" onsubmit="handleUpdateUnder18(event)">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="allow-under18-checkbox">
+                        <label for="allow-under18-checkbox">Allow Under 18 Bookings</label>
+                    </div>
+                    <button type="submit" class="btn secondary">Save Settings</button>
+                </form>
+            </section>
 
             <section class="logs-section panel">
                 <h2>Staff Activity Logs</h2>
