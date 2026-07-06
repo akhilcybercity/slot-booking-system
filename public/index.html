@@ -309,6 +309,20 @@
     </main>
 
     <!-- Modals -->
+    <!-- Document Check Modal -->
+    <div id="document-check-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 450px; text-align: center;">
+            <h2 style="margin-bottom: 1rem;">Document Requirement</h2>
+            <p style="margin-bottom: 2rem; color: var(--text-muted);">
+                Do you have a <strong>PAN CARD</strong> or <strong>10th Certificate (with DOB Printed)</strong>?
+            </p>
+            <div style="display: flex; gap: 1rem; justify-content: center;">
+                <button type="button" class="btn primary" onclick="handleDocumentCheck(true)">Yes, I have it</button>
+                <button type="button" class="btn danger" onclick="handleDocumentCheck(false)">No, I don't</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Booking Modal -->
     <div id="booking-modal" class="modal-overlay">
         <div class="modal-content">

@@ -76,6 +76,7 @@ const tbody = document.getElementById('slots-tbody');
 const slotsTableContainer = document.querySelector('.slots-table-container');
 
 // Modals
+const documentCheckModal = document.getElementById('document-check-modal');
 const bookingModal = document.getElementById('booking-modal');
 const successModal = document.getElementById('success-modal');
 const bookingForm = document.getElementById('booking-form');
@@ -368,7 +369,7 @@ function renderSlots(dateStr, dayData) {
                 } else {
                     td.className = 'slot-cell slot-available';
                     td.innerHTML = `${slot.startStr} &middot; Reserve`;
-                    td.addEventListener('click', () => openBookingModal(dateStr, slot, comp, index));
+                    td.addEventListener('click', () => triggerDocumentCheck(dateStr, slot, comp, index));
                 }
             }
             tr.appendChild(td);
@@ -379,6 +380,29 @@ function renderSlots(dateStr, dayData) {
 }
 
 // --- Booking Logic (Client) ---
+
+let pendingBookingParams = null;
+
+window.triggerDocumentCheck = function(dateStr, slot, comp, slotIndex) {
+    pendingBookingParams = { dateStr, slot, comp, slotIndex };
+    documentCheckModal.style.display = 'flex';
+};
+
+window.handleDocumentCheck = function(hasDocument) {
+    documentCheckModal.style.display = 'none';
+    if (hasDocument && pendingBookingParams) {
+        openBookingModal(
+            pendingBookingParams.dateStr, 
+            pendingBookingParams.slot, 
+            pendingBookingParams.comp, 
+            pendingBookingParams.slotIndex
+        );
+    } else if (!hasDocument) {
+        showToast("You are not eligible to book a slot without these documents.", true);
+    }
+    pendingBookingParams = null;
+};
+
 window.openBookingModal = function(dateStr, slot, comp, slotIndex) {
     currentBookingSlot = {
         date: dateStr,
