@@ -839,17 +839,19 @@ async function renderRoster(dateStr, role) {
         let hasBookings = false;
         const bookings = [];
 
+        const daySlots = generateTimeSlots(dateStr);
+
         for (const [key, data] of Object.entries(dayData)) {
             if (data.status === 'booked') {
                 const [timeId, comp] = key.split('_');
-                const startSlotIndex = ALL_SLOTS.findIndex(s => s.id === timeId);
-                let endStr = ALL_SLOTS[startSlotIndex].endStr;
-                if (data.duration === 20) endStr = ALL_SLOTS[startSlotIndex + 1].endStr;
+                const startSlotIndex = daySlots.findIndex(s => s.id === timeId);
+                let endStr = daySlots[startSlotIndex].endStr;
+                if (data.duration === 20) endStr = daySlots[startSlotIndex + 1].endStr;
                 
                 bookings.push({
                     key, data, timeId, comp,
                     compName: 'Computer ' + comp.replace('C', ''),
-                    startStr: ALL_SLOTS[startSlotIndex].startStr,
+                    startStr: daySlots[startSlotIndex].startStr,
                     endStr
                 });
             }
