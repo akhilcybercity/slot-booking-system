@@ -23,12 +23,18 @@ async function initDB() {
                 name VARCHAR(255),
                 roll_no VARCHAR(255),
                 department VARCHAR(255),
+                contact_number VARCHAR(255),
+                class_area VARCHAR(255),
                 is_under_18 TINYINT DEFAULT 0,
                 duration INT DEFAULT 10,
                 cancel_code VARCHAR(255),
                 parent_slot VARCHAR(255)
             )
         `);
+
+        // Add columns if they don't exist for older DB instances
+        try { await pool.query("ALTER TABLE bookings ADD COLUMN contact_number VARCHAR(255)"); } catch(e) {}
+        try { await pool.query("ALTER TABLE bookings ADD COLUMN class_area VARCHAR(255)"); } catch(e) {}
 
         // Settings table
         await pool.query(`

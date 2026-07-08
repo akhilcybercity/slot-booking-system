@@ -7,10 +7,16 @@ let userRole = localStorage.getItem('userRole') || null;
 
 // --- Constants & Config ---
 const START_HOUR = 10;
-const END_HOUR = 17; // 5 PM
-const SLOT_DURATION = 10; // minutes
 const BREAK_START = { h: 14, m: 0 }; // 2:00 PM
 const BREAK_END = { h: 14, m: 30 }; // 2:30 PM
+
+function getConfigForDate(dateStr) {
+    if (!dateStr || dateStr < '2026-07-13') {
+        return { duration: 10, endHour: 17 };
+    } else {
+        return { duration: 8, endHour: 16 };
+    }
+}
 
 // --- Utilities ---
 function formatTime(h, m) {
@@ -20,21 +26,26 @@ function formatTime(h, m) {
     return `${hour12}:${minStr} ${ampm}`;
 }
 
-function generateTimeSlots() {
+function generateTimeSlots(dateStr) {
+    const config = getConfigForDate(dateStr);
     const slots = [];
     let currentH = START_HOUR;
     let currentM = 0;
 
-    while (currentH < END_HOUR || (currentH === END_HOUR && currentM === 0)) {
-        if (currentH === END_HOUR && currentM === 0) break;
+    while (currentH < config.endHour || (currentH === config.endHour && currentM === 0)) {
+        if (currentH === config.endHour && currentM === 0) break;
 
         const startTime = formatTime(currentH, currentM);
         
-        let nextM = currentM + SLOT_DURATION;
+        let nextM = currentM + config.duration;
         let nextH = currentH;
         if (nextM >= 60) {
             nextM -= 60;
             nextH++;
+        }
+        
+        if (nextH > config.endHour || (nextH === config.endHour && nextM > 0)) {
+            break; 
         }
         
         const endTime = formatTime(nextH, nextM);
@@ -54,8 +65,6 @@ function generateTimeSlots() {
     }
     return slots;
 }
-
-const ALL_SLOTS = generateTimeSlots();
 
 // --- DOM Elements ---
 const viewBook = document.getElementById('view-book');
@@ -103,6 +112,7 @@ let currentSelectedDate = '';
 let currentBookingSlot = null;
 let currentCancelTarget = null;
 let currentDayData = {};
+let currentDaySlots = [];
 
 // --- Toast Notification ---
 function showToast(msg, isError = false) {
@@ -287,6 +297,7 @@ async function handleDateChange(dateStr) {
         dateStatusBanner.style.color = 'var(--text-green)';
         dateStatusBanner.style.borderColor = 'rgba(45, 74, 62, 0.2)';
         slotsTableContainer.style.display = 'block';
+        currentDaySlots = generateTimeSlots(dateStr);
         await loadAndRenderSlots(dateStr);
     }
 }
@@ -319,7 +330,7 @@ function renderSlots(dateStr, dayData) {
     const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(now);
     const isToday = dateStr === todayStr;
 
-    ALL_SLOTS.forEach((slot, index) => {
+    currentDaySlots.forEach((slot, index) => {
         const tr = document.createElement('tr');
         
         const tdTime = document.createElement('td');
@@ -447,8 +458,8 @@ window.openBookingModal = function(dateStr, slot, comp, slotIndex) {
 };
 
 function checkNextSlotAvailable(dateStr, comp, currentIndex) {
-    if (currentIndex + 1 >= ALL_SLOTS.length) return false;
-    const nextSlot = ALL_SLOTS[currentIndex + 1];
+    if (currentIndex + 1 >= currentDaySlots.length) return false;
+    const nextSlot = currentDaySlots[currentIndex + 1];
     if (nextSlot.isBreak) return false;
     return !currentDayData[`${nextSlot.id}_${comp}`];
 }
@@ -457,12 +468,14 @@ async function handleBookingSubmit(e) {
     e.preventDefault();
     
     const name = document.getElementById('student-name').value;
+    const contactNumber = document.getElementById('student-contact').value;
     const rollNo = document.getElementById('student-roll').value;
-    const department = document.getElementById('student-class').value;
+    const department = document.getElementById('student-department').value;
+    const classArea = document.getElementById('student-class').value;
     const isUnder18 = document.getElementById('under-18').checked;
     
     if (isUnder18 && !checkNextSlotAvailable(currentBookingSlot.date, currentBookingSlot.computerId, currentBookingSlot.index)) {
-        alert("Cannot book 20 minutes as the next slot is unavailable.");
+        alert("Cannot book extra time as the next slot is unavailable.");
         return;
     }
 
@@ -472,16 +485,19 @@ async function handleBookingSubmit(e) {
     let endStrFinal = currentBookingSlot.endStr;
 
     if (isUnder18) {
-        const nextSlot = ALL_SLOTS[currentBookingSlot.index + 1];
+        const nextSlot = currentDaySlots[currentBookingSlot.index + 1];
         continuedSlotKey = `${nextSlot.id}_${currentBookingSlot.computerId}`;
         endStrFinal = nextSlot.endStr;
     }
 
+    const config = getConfigForDate(currentBookingSlot.date);
+    const duration = isUnder18 ? config.duration * 2 : config.duration;
+
     const payload = {
         date: currentBookingSlot.date,
         slot_key: slotKey,
-        name, rollNo, department, isUnder18, 
-        duration: isUnder18 ? 20 : 10, 
+        name, rollNo, contactNumber, department, classArea, isUnder18, 
+        duration, 
         cancelCode, continuedSlotKey
     };
 
@@ -551,12 +567,14 @@ async function handleFindBooking(e) {
             const [timeId, comp] = foundSlotKey.split('_');
             const compName = 'Computer ' + comp.replace('C', '');
             
-            const startSlotIndex = ALL_SLOTS.findIndex(s => s.id === timeId);
-            let endStr = ALL_SLOTS[startSlotIndex].endStr;
-            if (foundData.duration === 20) endStr = ALL_SLOTS[startSlotIndex + 1].endStr;
+            const targetDaySlots = generateTimeSlots(dateToFind);
+            const startSlotIndex = targetDaySlots.findIndex(s => s.id === timeId);
+            let endStr = targetDaySlots[startSlotIndex].endStr;
+            const config = getConfigForDate(dateToFind);
+            if (foundData.duration > config.duration) endStr = targetDaySlots[startSlotIndex + 1].endStr;
 
             document.getElementById('cancel-name-display').textContent = foundData.name.toUpperCase();
-            document.getElementById('cancel-time-display').innerHTML = `${compName} &middot; ${ALL_SLOTS[startSlotIndex].startStr}–${endStr} (${foundData.duration} min)`;
+            document.getElementById('cancel-time-display').innerHTML = `${compName} &middot; ${targetDaySlots[startSlotIndex].startStr}–${endStr} (${foundData.duration} min)`;
             
             document.getElementById('cancel-code-input').value = '';
             cancelResult.style.display = 'flex';

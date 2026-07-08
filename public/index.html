@@ -29,7 +29,7 @@
             
             <section class="date-selection panel">
                 <h2>Choose a date</h2>
-                <p class="subtitle">Slots run 10:00 AM – 5:00 PM with a break from 2:00–2:30 PM. Closed Sundays, 2nd & 4th Saturdays, and bank holidays.</p>
+                <p class="subtitle">Slots run 10:00 AM until 4:00 PM (or 5:00 PM for older dates) with a break from 2:00–2:30 PM. Closed Sundays, 2nd & 4th Saturdays, and bank holidays.</p>
                 
                 <div class="date-controls">
                     <div class="input-group">
@@ -339,18 +339,28 @@
                 </div>
                 
                 <div class="input-group">
+                    <label for="student-contact">CONTACT NUMBER</label>
+                    <input type="text" id="student-contact" placeholder="e.g. 9876543210" required>
+                </div>
+                
+                <div class="input-group">
                     <label for="student-roll">REGISTER / ROLL NO.</label>
                     <input type="text" id="student-roll" placeholder="e.g. 23BCA045" required>
                 </div>
                 
                 <div class="input-group">
-                    <label for="student-class">CLASS / DEPARTMENT (OPTIONAL)</label>
-                    <input type="text" id="student-class" placeholder="e.g. II BCA">
+                    <label for="student-department">DEPARTMENT (OPTIONAL)</label>
+                    <input type="text" id="student-department" placeholder="e.g. BCA">
+                </div>
+
+                <div class="input-group">
+                    <label for="student-class">CLASS AREA (OPTIONAL)</label>
+                    <input type="text" id="student-class" placeholder="e.g. II Year">
                 </div>
                 
                 <div class="checkbox-group alert-box">
                     <input type="checkbox" id="under-18">
-                    <label for="under-18">I am under 18 — I need 20 minutes for my account opening. This will also reserve the next 10-minute slot on this computer.</label>
+                    <label for="under-18">I am under 18 — I need extra time for my account opening. This will also reserve the next slot on this computer.</label>
                 </div>
                 
                 <div class="modal-actions">

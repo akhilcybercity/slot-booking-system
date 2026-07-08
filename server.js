@@ -240,6 +240,8 @@ app.get('/api/bookings/:date', async (req, res) => {
                 name: row.name,
                 rollNo: row.roll_no,
                 department: row.department,
+                contactNumber: row.contact_number,
+                classArea: row.class_area,
                 isUnder18: !!row.is_under_18,
                 duration: row.duration,
                 cancelCode: row.cancel_code,
@@ -266,6 +268,8 @@ app.get('/api/staff/roster/:date', authenticateToken, async (req, res) => {
                 name: row.name,
                 rollNo: row.roll_no,
                 department: row.department,
+                contactNumber: row.contact_number,
+                classArea: row.class_area,
                 isUnder18: !!row.is_under_18,
                 duration: row.duration,
                 cancelCode: row.cancel_code,
@@ -280,7 +284,7 @@ app.get('/api/staff/roster/:date', authenticateToken, async (req, res) => {
 });
 
 app.post('/api/bookings', async (req, res) => {
-    const { date, slot_key, name, rollNo, department, isUnder18, duration, cancelCode, continuedSlotKey } = req.body;
+    const { date, slot_key, name, rollNo, department, contactNumber, classArea, isUnder18, duration, cancelCode, continuedSlotKey } = req.body;
     
     try {
         const [checkRows] = await db.query("SELECT id FROM bookings WHERE date = ? AND slot_key = ?", [date, slot_key]);
@@ -330,8 +334,8 @@ app.post('/api/bookings', async (req, res) => {
         const id1 = `${date}_${slot_key}`;
         
         await db.query(
-            "INSERT INTO bookings (id, date, slot_key, status, name, roll_no, department, is_under_18, duration, cancel_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            [id1, date, slot_key, 'booked', name, rollNo, department, isUnder18 ? 1 : 0, duration, cancelCode]
+            "INSERT INTO bookings (id, date, slot_key, status, name, roll_no, department, contact_number, class_area, is_under_18, duration, cancel_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [id1, date, slot_key, 'booked', name, rollNo, department, contactNumber, classArea, isUnder18 ? 1 : 0, duration, cancelCode]
         );
                 
         if (isUnder18 && continuedSlotKey) {
