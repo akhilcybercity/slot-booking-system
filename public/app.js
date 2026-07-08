@@ -840,13 +840,21 @@ async function renderRoster(dateStr, role) {
         const bookings = [];
 
         const daySlots = generateTimeSlots(dateStr);
+        const config = getConfigForDate(dateStr);
 
         for (const [key, data] of Object.entries(dayData)) {
             if (data.status === 'booked') {
                 const [timeId, comp] = key.split('_');
                 const startSlotIndex = daySlots.findIndex(s => s.id === timeId);
+                
+                // If the slot doesn't exist in the current schedule, skip to prevent crashing
+                if (startSlotIndex === -1) continue;
+                
                 let endStr = daySlots[startSlotIndex].endStr;
-                if (data.duration === 20) endStr = daySlots[startSlotIndex + 1].endStr;
+                // Check if duration is a double slot based on current config
+                if (data.duration > config.duration && startSlotIndex + 1 < daySlots.length) {
+                    endStr = daySlots[startSlotIndex + 1].endStr;
+                }
                 
                 bookings.push({
                     key, data, timeId, comp,
