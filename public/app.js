@@ -870,30 +870,53 @@ async function renderRoster(dateStr, role) {
             return a.timeId.localeCompare(b.timeId);
         });
 
-        bookings.forEach(b => {
-            hasBookings = true;
-            const item = document.createElement('div');
-            item.className = 'roster-item';
-            
-            let subtext = `${b.compName} &middot; ${b.startStr}–${b.endStr}`;
-            if(b.data.isUnder18) subtext += ` &middot; under 18`;
-
-            let freeBtn = role === 'admin' 
-                ? `<button type="button" class="btn danger" onclick="adminFreeSlot('${dateStr}', '${b.key}')">Free slot</button>`
-                : '';
-
-            item.innerHTML = `
-                <div class="roster-details">
-                    <h4>${b.data.name.toUpperCase()} (${b.data.rollNo}, ${b.data.department || 'N/A'})</h4>
-                    <p>${subtext}</p>
-                </div>
-                ${freeBtn}
-            `;
-            rList.appendChild(item);
-        });
-
-        if (!hasBookings) {
+        if (bookings.length === 0) {
             rList.innerHTML = '<p style="color: var(--text-muted); font-style: italic;">No bookings for this date.</p>';
+        } else {
+            let tableHTML = `
+                <div class="slots-table-container" style="overflow-x: auto; margin-top: 1rem;">
+                    <table class="slots-table" style="font-size: 0.9rem; min-width: 800px;">
+                        <thead>
+                            <tr>
+                                <th>Time & Comp</th>
+                                <th>Name</th>
+                                <th>Roll No</th>
+                                <th>Contact</th>
+                                <th>Dept</th>
+                                <th>Class Area</th>
+                                ${role === 'admin' ? '<th>Action</th>' : ''}
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            bookings.forEach(b => {
+                let timeComp = `${b.startStr}–${b.endStr}<br><span class="text-muted" style="font-size:0.8rem;">${b.compName}</span>`;
+                if(b.data.isUnder18) timeComp += `<br><span style="color: var(--danger); font-size:0.8rem;">(Under 18)</span>`;
+
+                let freeBtn = role === 'admin' 
+                    ? `<button type="button" class="btn danger" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;" onclick="adminFreeSlot('${dateStr}', '${b.key}')">Free slot</button>`
+                    : '';
+
+                tableHTML += `
+                            <tr>
+                                <td>${timeComp}</td>
+                                <td style="font-weight: 500;">${b.data.name.toUpperCase()}</td>
+                                <td>${b.data.rollNo}</td>
+                                <td>${b.data.contactNumber || '-'}</td>
+                                <td>${b.data.department || '-'}</td>
+                                <td>${b.data.classArea || '-'}</td>
+                                ${role === 'admin' ? `<td>${freeBtn}</td>` : ''}
+                            </tr>
+                `;
+            });
+
+            tableHTML += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            rList.innerHTML = tableHTML;
         }
     } catch(e) {
         rList.innerHTML = 'Error loading roster.';
